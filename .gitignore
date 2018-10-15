@@ -22,3 +22,16 @@ transcript*
 sc_dpiheader.h
 vsim.dbg
 
+# directories to ignore
+quartus/db
+quartus/incremental_db
+quartus/output_files
+quartus/simulation
+*/vunit_out
+
+# file extensions to ignore
+*.qws
+*.rpt
+
+# more specific filenames to ignore
+*dump.txt
