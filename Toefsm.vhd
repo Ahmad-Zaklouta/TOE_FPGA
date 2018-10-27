@@ -107,14 +107,16 @@ begin
             ------------------------
             -- PASSIVE OPEN
             -----------------------
-            if i_valid = '1' and i_flags = "000000010" then --- SYN is high
+            if appl_close = '1'  then
+               next_state <= CLOSED;
+            elsif i_valid = '1' and i_flags = "000000010" then --- SYN is high
                --ri_next_header <= ri_header; SAVE THE HEADER
                ri_next_dest_ip <= ri_dest_ip;
                ri_next_dest_port <= ri_dest_port;
                ri_next_source_ip <= 
                
                ri_next_sequence_number
-               
+               SENT SYN,ACK
                o_header <= i_dest_ip & i_source_ip ..... --counstruct the header for send the SYN,ACK
                o_ready_TX_engine <= '1'; -- signat to Tx TO SEND THE SEGMENT
                
@@ -133,7 +135,7 @@ begin
                next_state <= CLOSED;
                
             elsif i_valid = '1' and i_flags = "000000010" !! Here the src dest ip,ports,seq_number should be checked then --- SYN is high
-               --ri_next_header <= ri_header; SAVE THE HEADER
+               --ri_next_header <= ri_header; SAVE THE HEADER !! if wrong ip or port send rst ?
                ri_next_dest_ip <= ri_dest_ip;
                ri_next_dest_port <= ri_dest_port;
                ri_next_source_ip <= 
@@ -145,7 +147,7 @@ begin
                SEND SYN,ACK 
                next_state <= SYN_RCVD;
                
-            elsif synack received , sent ack and goto ESTABLISHED
+            elsif i_valid, synack received , sent ack and goto ESTABLISHED
             
             else next_state<= SYN_SENT;
                
@@ -207,18 +209,52 @@ begin
                
                
          when FIN_WAIT_1 =>
-         
+            ------------------------
+            -- ACTIVE OPEN
+            -----------------------
+            if timeout go to? ??? CLOSED??
+            elsif i_valid
+               if received FIN 
+                  send ack 
+                  next_state <= CLOSING;
+               elsif received ack of fin in established state
+                  next_state <= FIN_WAIT_2;
+               elsif receivedfin,ack
+                  next_state <= TIME_WAIT;
+               else 
+                  next_state <= FIN_WAIT_1;
+            end if;
          when FIN_WAIT_2 =>
-         
+            ------------------------
+            -- ACTIVE OPEN
+            -----------------------
+            if timeout go to? ??? CLOSED??
+            elsif i_valid
+               if received fin
+                  send ack
+                  next_state <= TIME_WAIT;
+            else 
+               next_state <= FIN_WAIT_2;
          when CLOSING =>
          
          when TIME_WAIT =>
-         
+            wait for some time the go to closed state
          when CLOSE_WAIT =>
+            if timeout go to? ??? CLOSED??
+            elsif appl_close then
+               send FIN
+               next_state <=LAST_ACK;
+            else
+               next_state <= CLOSE_WAIT;
+            end if;
          
          when LAST_ACK =>
-         
-            
+            if timeout go to? ??? CLOSED??
+            elsif i_valid then
+               if receive ack 
+               next_state <=CLOSED;
+            else 
+               next_state <= LAST_ACK;
          when others =>
             
          
