@@ -133,8 +133,10 @@ begin
             -----------------------
             if appl_close or timeout then
                next_state <= CLOSED;
-               
-            elsif i_valid = '1' and i_flags = "000000010" !! Here the src dest ip,ports,seq_number should be checked then --- SYN is high
+               ------------------------
+               -- ?????????????????????????????????????????????????????????
+               -----------------------
+            elsif i_valid = '1' and i_flags = "00000010" !! Here the src dest ip,ports,seq_number should be checked then --- SYN is high
                --ri_next_header <= ri_header; SAVE THE HEADER !! if wrong ip or port send rst ?
                ri_next_dest_ip <= ri_dest_ip;
                ri_next_dest_port <= ri_dest_port;
@@ -156,14 +158,22 @@ begin
             end if;
             
          when SYN_RCVD =>
-         
+            if time out go to CLOSED ?????
             if appl_close = '1'  then
                next_state <= FIN_WAIT_1;
-               --construct packet with Fin
+               construct packet with Fin
             elsif i_valid  = '1' then
                if i_source_ip = ri_source_ip and sequence number what i expect... then --Generally same port and ips
                   if i_ack = '1';
                      next_state <= ESTABLISHED;
+                     ------------------------
+                     -- ?????????????????????????????????????????????????????????
+                     In the event that a connection request arrives on the server and 
+                     that no application is listening on the requested port, a segment 
+                     with flag RST (reset) is sent to the client by the server, 
+                     the connection attempt is immediately terminated.
+                     maybe discard and not take it into consideration?                     
+                     ----------------------
                   elsif i_flags = RST  then
                      next_state <= LISTEN;
                   end if;
@@ -176,8 +186,9 @@ begin
             else 
                next_state <= SYN_RCVD;
             end if;
+            
          when ESTABLISHED =>
-         -- time out is restarting every time a packet is received even if this packet is out of order?
+            -- time out is restarting every time a packet is received even if this packet is out of order?
             ------------------------
             -- PASSIVE OPEN
             -----------------------
@@ -191,9 +202,9 @@ begin
                      next_state <= CLOSE_WAIT;
                   else
                      -- pass packet to application
-                     o_ready_RX_engine <= '1';
-                  
-                  next_state <= ESTABLISHED;
+                     o_ready_RX_engine <= '1';                  
+                     next_state <= ESTABLISHED;                     
+                  end if;
             else 
                next_state <= ESTABLISHED;
                end if;
@@ -201,12 +212,12 @@ begin
             end if;
             
             ------------------------
-            -- ACTIVE OPEN
+            -- APP IS SENDING PARALLELY SEQUENCE NUMBER LAST PACKET + 1 ?? CONFLICT DUE TO CHANGING SEQ NUMBER HERE AND LINE 196??
             -----------------------
             if want to send from app 
                build o_header 
                o_ready_TX_engine <= '1';
-               
+            end if; 
                
          when FIN_WAIT_1 =>
             ------------------------
@@ -220,6 +231,7 @@ begin
                elsif received ack of fin in established state
                   next_state <= FIN_WAIT_2;
                elsif receivedfin,ack
+                  send ack
                   next_state <= TIME_WAIT;
                else 
                   next_state <= FIN_WAIT_1;
@@ -236,6 +248,12 @@ begin
             else 
                next_state <= FIN_WAIT_2;
          when CLOSING =>
+            if timeout go to? ??? CLOSED??
+            elsif i_valid then
+               if receive ack 
+               next_state <=TIME_WAIT;
+            else 
+               next_state <= LAST_ACK;
          
          when TIME_WAIT =>
             wait for some time the go to closed state
