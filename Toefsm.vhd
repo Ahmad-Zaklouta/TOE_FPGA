@@ -1,23 +1,3 @@
--- -----------------------------------------------------------------------------
---
---  Title      :  Edge-Detection design project - task 2.
---             :
---  Developers :  YOUR NAME HERE - s??????@student.dtu.dk
---             :  YOUR NAME HERE - s??????@student.dtu.dk
---             :
---  Purpose    :  This design contains an entity for the accelerator that must be build
---             :  in task two of the Edge Detection design project. It contains an
---             :  architecture skeleton for the entity as well.
---             :
---  Revision   :  1.0   ??-??-??     Final version
---             :
---
--- -----------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
--- The entity for task two. Notice the additional signals for the memory.
--- reset is active high.
---------------------------------------------------------------------------------
 
 library IEEE;
 use IEEE.std_logic_1164.all;
@@ -32,7 +12,7 @@ entity acc is
       -- Inputs from Application
       --------------------------------------------------------------------------------
       i_active_mode  :  in  std_ulogic;
-      last           :  in  -- send data
+      last           :  in  std_ulogic; -- send data
       i_open         :  in  std_ulogic;      shall i save this to registers?
       --------------------------------------------------------------------------------
       -- Inputs from Rx engine
@@ -55,7 +35,7 @@ entity acc is
       --------------------------------------------------------------------------------
       o_header    :  out t_tcp_header;
       o_forwardTX :  out std_ulogic;
-                 
+ 
     );
 end acc;
 
@@ -70,67 +50,38 @@ type state_type is ( CLOSED, LISTEN, SYN_SENT, SYN_RCVD, ESTABLISHED, FIN_WAIT_1
 signal state, next_state : state_type;
 --signal counter , next_counter
 --------------------------------------------------------------------------------
--- Signals for Rx engine
+-- Signals to Tx engine
 --------------------------------------------------------------------------------
-signal   ri_header, ri_next_header ;
-signal   ri_source_port, ri_next_source_port          :  t_tcp_header.src_port;
-signal   ri_source_ip, ri_next_source_ip              :  t_tcp_header.src_ip;
-signal   ri_dest_ip, ri_next_dest_ip                  :  t_tcp_header.dst_ip;
-signal   ri_dest_port, ri_next_dest_port              :  t_tcp_header.dst_port;
-signal   ri_sequence_number, ri_next_sequence_number  :  t_tcp_header.seq_num;
-signal   ri_ack_num, ri_next_ack_num                  :  t_tcp_header.ack_num;
-signal   ri_data_offset, ri_next_data_offset          :  t_tcp_header.data_offset;
-signal   ri_reserved, ri_next_reserved                :  t_tcp_header.reserved;
-signal   ri_flags, ri_next_flags                      :  t_tcp_header.flags;
-signal   ri_window_size, ri_next_window_size          :  t_tcp_header.window_size;
---- checksum not neseccary on this entity
-signal   ri_urgent_ptr, ri_next_urgent_ptr            :  t_tcp_header.urgent_ptr;
---signal   wi_valid                                     :  std_ulogic;
---signal   wo_forwardRX                                 :  std_ulogic;
---signal   wo_ discard                                  :  std_ulogic;
+signal   ro_headerRx, ro_next_headerRx      :  t_tcp_header; -- CREATE HEADER ,REPLY TO RECEIVED PACKET 
+signal   ro_headerApp, ro_next_headerApp    :  t_tcp_header; -- CREATE HEADER, APP WANTS TO SEND
 --------------------------------------------------------------------------------
 -- Signals for Tx engine
 --------------------------------------------------------------------------------
-signal   ro_clheader, ro_next_clheader      :  t_tcp_header;
-signal   ro_svrheader, ro_next_svrheader    :  t_tcp_header;
 
-signal   wo_header    :  t_tcp_header;
-signal   ro_source_port, ro_next_source_port          :  t_tcp_header.src_port;
-signal   ro_source_ip, ro_next_source_ip              :  t_tcp_header.src_ip;
-signal   ro_dest_ip, ro_next_dest_ip                  :  t_tcp_header.dst_ip;
-signal   ro_dest_port, ro_next_dest_port              :  t_tcp_header.dst_port;
-signal   ro_sequence_number, ro_next_sequence_number  :  t_tcp_header.seq_num;
-signal   ro_ack_num, ro_next_ack_num                  :  t_tcp_header.ack_num;
-signal   ro_data_offset, ro_next_data_offset          :  t_tcp_header.data_offset;
-signal   ro_reserved, ro_next_reserved                :  t_tcp_header.reserved;
-signal   ro_flags, ro_next_flags                      :  t_tcp_header.flags;
-signal   ro_window_size, ro_next_window_size          :  t_tcp_header.window_size;
---- checksum not neseccary on this entity
-signal   ro_urgent_ptr, ro_next_urgent_ptr            :  t_tcp_header.urgent_ptr;
---signal   wi_data_size                               :  --Register
-
+--------------------------------------------------------------------------------
+-- My IP.PORT
+--------------------------------------------------------------------------------
+signal ip 
+signal port_no
    
 --------------------------------------------------------------------------------
--- Procedure signals
+-- other Procedure signals
 --------------------------------------------------------------------------------
-signal   r_counter, r_next_counter                        :
 
--- All internal signals are defined here
-
+signal   r_counter, r_next_counter  :
+signal   control  :  std_ulogic;
 
 
 -- mux me next_reg
 
-begin
-
-   o_header <= ro_header;
-   
-   
-   
+begin  
+   o_header <= ro_headerApp WHEN control = '1' ELSE ro_headerRx;   
+  
    comb_logic: process()     
    begin
-      ri_next_header <= ri_header;
-      ro_next_header <= ro_header;           
+      ro_next_headerRx <= ro_headerRx;
+      ro_next_headerApp <= ro_headerApp;    
+      control <= '1';
       
       case state is
          when CLOSED =>            
@@ -139,18 +90,21 @@ begin
                --construct header sent SYN
                -----------------------
                next_state <=  SYN_SENT;
-               ro_next_clheader.src_ip    <= ???????????;
-               ro_next_clheader.dst_ip    <= ?????????;
-               ro_next_clheader.seq_num   <= x"0001";
+               ro_next_headerApp.src_ip    <= ???????????;
+               ro_next_headerApp.dst_ip    <= ?????????;
+               ro_next_headerApp.src_port    <= ???????????;
+               ro_next_headerApp.dst_port    <= ?????????;
+               ro_next_headerApp.seq_num   <= x"0001";
                -- omit o_header.ack_num 
-               ro_next_clheader.reserved  <= "000";
-               ro_next_clheader.flags     <= "00000010";  --  SENT SYN,ACK
-               ro_next_clheader.window_size  <= x"00"
-               ro_next_clheader.urgent_ptr   <= x"00"
+               ro_next_headerApp.reserved  <= "000";
+               ro_next_headerApp.flags     <= "00000010";  --  SENT SYN
+               ro_next_headerApp.window_size  <= x"00"
+               ro_next_headerApp.urgent_ptr   <= x"00"
                o_forwardTX        <= '1';          -- signat to Tx TO transmit THE SEGMENT 
                
              
             elsif i_open = '0' then  -- passive_open
+               read listeing port and ip from App
                next_state <=  LISTEN;
             else
             next_state <= state;
@@ -162,17 +116,19 @@ begin
             -----------------------
             if i_open = '0'  then   -- appl_close = '1'
                next_state <= CLOSED;
-            elsif i_valid = '1' and i_header.flags = "000000010" then --- SYN is high
-               ri_next_header <= i_header;
-               --ri_next_header <= ri_header; SAVE THE HEADER
-               ro_next_svrheader.src_ip    <= i_header.dst_ip;
-               ro_next_svrheader.dst_ip    <= i_header.src_ip;
-               ro_next_svrheader.seq_num   <= x"0001";
-               ro_next_svrheader.ack_num   <= i_header.seq_num;
-               ro_next_svrheader.reserved  <= "000";
-               ro_next_svrheader.flags     <= "000010010";  --  SENT SYN,ACK
-               ro_next_svrheader.window_size  <= x"00"
-               ro_next_svrheader.urgent_ptr   <= x"00"
+            elsif i_valid = '1' and i_header.flags = "000000010" then --- SYN RECEIVED
+               control <= '0';
+               if (ip = i_header.dst_ip) and (port_no = i_header.dst_port)   then
+               
+               
+               ro_next_headerRx.src_ip    <= i_header.dst_ip;
+               ro_next_headerRx.dst_ip    <= i_header.src_ip;
+               ro_next_headerRx.seq_num   <= x"0001";
+               ro_next_headerRx.ack_num   <= i_header.seq_num;
+               ro_next_headerRx.reserved  <= "000";
+               ro_next_headerRx.flags     <= "000010010";  --  SENT SYN,ACK
+               ro_next_headerRx.window_size  <= x"00"
+               ro_next_headerRx.urgent_ptr   <= x"00"
                o_forwardTX        <= '1';          -- signat to Tx TO transmit THE SEGMENT      
               
                
@@ -185,20 +141,20 @@ begin
             
          when SYN_SENT =>
             ------------------------
-            -- ACTIVE OPEN
+            -- 
             -----------------------
             if i_open = '0' or timeout then  --  if appl_close or timeout
                next_state <= CLOSED;
                ------------------------
-               -- At this point ,i cannot receive out of order data so i might omit if at line 196 ????
+               -- At this point ,i cannot receive out of order data so i might omit the if at line 196 ????
                -----------------------
             elsif i_valid = '1' and i_header.flags = "00010010"  then --  !! Here the src dest ip,ports,seq_number should be checked SYN ACK recieved
-               if (ro_clheader.src_ip = i_header.dst_ip) and (ro_clheader.dst_ip = i_header.src_ip)
-                  and (ro_clheader.dst_port = i_header.src_port) and (ro_clheader.src_port = i_header.dst_port) then
-                  if (ro_header.seq_num = i_header.ack_num) then 
-                     ro_next_clheader.seq_num <= ro_clheader.seq_num + '1';
-                     ro_next_clheader.ack_num <= i_header.seq_num;
-                     ro_next_clheader.flag <= "000100000";
+               if (ro_headerApp.src_ip = i_header.dst_ip) and (ro_headerApp.dst_ip = i_header.src_ip)
+                  and (ro_headerApp.dst_port = i_header.src_port) and (ro_headerApp.src_port = i_header.dst_port) then
+                  if (ro_headerApp.seq_num = i_header.ack_num) then 
+                     ro_next_headerApp.seq_num <= ro_headerApp.seq_num + '1';
+                     ro_next_headerApp.ack_num <= i_header.seq_num;
+                     ro_next_headerApp.flag <= "000100000";
                      o_forwardTX <= '1';
                      next_state <= ESTABLISHED;
                   else
