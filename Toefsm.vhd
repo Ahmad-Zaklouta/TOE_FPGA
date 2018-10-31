@@ -1,56 +1,41 @@
--- -----------------------------------------------------------------------------
---
---  Title      :  Edge-Detection design project - task 2.
---             :
---  Developers :  YOUR NAME HERE - s??????@student.dtu.dk
---             :  YOUR NAME HERE - s??????@student.dtu.dk
---             :
---  Purpose    :  This design contains an entity for the accelerator that must be build
---             :  in task two of the Edge Detection design project. It contains an
---             :  architecture skeleton for the entity as well.
---             :
---  Revision   :  1.0   ??-??-??     Final version
---             :
---
--- -----------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
--- The entity for task two. Notice the additional signals for the memory.
--- reset is active high.
---------------------------------------------------------------------------------
 
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
 
-use work.types.all;
+use work.tcp_common.all;
 
 entity acc is
    
    port(
-      i_active_open        :
-      i_passive_open       :
-      --signals to RX engine
-      clk                  :  in  std_logic;             -- The clock.
-      reset                :  in  std_logic;             -- The reset signal. Active high.
-      i_source_ip          :   
-      i_dest_ip            :
-      i_source_port        :
-      i_dest_port          :
-      i_flags              :
-      i_sequence_number    :
-      i_data_size          :
-      i_valid              :
-   -- signals to TX engine
-      o_ready              :
-      o_source_ip          :
-      o_dest_ip            :
-      o_flags              :
-      o_sequence_number
-      o_ack                :
-      o_header             :
-      o_data_size          :
-      o_sent               :
+      --------------------------------------------------------------------------------
+      -- Inputs from Application
+      --------------------------------------------------------------------------------
+      i_active_mode  :  in  std_ulogic;
+      last           :  in  std_ulogic; -- send data
+      i_open         :  in  std_ulogic;      shall i save this to registers?
+      --------------------------------------------------------------------------------
+      -- Inputs from Rx engine
+      --------------------------------------------------------------------------------
+      i_header :  in t_tcp_header;
+      i_valid  :  in std_ulogic;
+      
+      --------------------------------------------------------------------------------
+      -- Outputs for Rx engine
+      --------------------------------------------------------------------------------
+      o_forwardRX :  out std_ulogic;
+      o_discard  :  out std_ulogic;
+
+      --------------------------------------------------------------------------------
+      -- Inputs from Tx engine
+      --------------------------------------------------------------------------------
+      i_data_size :  in  --register
+      --------------------------------------------------------------------------------
+      -- Outputs for Tx engine
+      --------------------------------------------------------------------------------
+      o_header    :  out t_tcp_header;
+      o_forwardTX :  out std_ulogic;
+ 
     );
 end acc;
 
@@ -64,61 +49,88 @@ type state_type is ( CLOSED, LISTEN, SYN_SENT, SYN_RCVD, ESTABLISHED, FIN_WAIT_1
                      CLOSE_WAIT, LAST_ACK, CLOSING, TIME_WAIT);
 signal state, next_state : state_type;
 --signal counter , next_counter
-signal   ri_source_port, ri_next_source_port          :  
-signal   ri_source_ip, ri_next_source_ip              : 
-signal   ri_dest_ip, ri_next_dest_ip                  :
-signal   ri_dest_port, ri_next_dest_port              :
-signal   wo_dest_ip, wo_next_dest_ip                  :
-signal   ri_sequence_number, ri_next_sequence_number  :
-signal   ro_sequence_number, ro_next_sequence_number  :
-signal   ri_header, ri_next_header                    :
-signal   ro_header, ro_next_header                    :
+--------------------------------------------------------------------------------
+-- Signals to Tx engine
+--------------------------------------------------------------------------------
+signal   ro_headerRx, ro_next_headerRx      :  t_tcp_header; -- CREATE HEADER ,REPLY TO RECEIVED PACKET 
+signal   ro_headerApp, ro_next_headerApp    :  t_tcp_header; -- CREATE HEADER, APP WANTS TO SEND
+--------------------------------------------------------------------------------
+-- Signals for Tx engine
+--------------------------------------------------------------------------------
 
-signal   counter, next_counter                        :
+--------------------------------------------------------------------------------
+-- My IP.PORT
+--------------------------------------------------------------------------------
+signal ip 
+signal port_no
+   
+--------------------------------------------------------------------------------
+-- other Procedure signals
+--------------------------------------------------------------------------------
 
--- All internal signals are defined here
-
+signal   r_counter, r_next_counter  :
+signal   control  :  std_ulogic;
 
 
 -- mux me next_reg
 
-begin
-   
-   
+begin  
+   o_header <= ro_headerApp WHEN control = '1' ELSE ro_headerRx;   
+  
    comb_logic: process()     
    begin
-      i_dest_ip <= ri_dest_ip;
-      i_source_ip <= ri_source_ip;
-      i_source_port <= ri_source_port;
-      i_dest_port <= ri_dest_port;
-      
-      i_sequence_number <= ri_sequence_number;
+      ro_next_headerRx <= ro_headerRx;
+      ro_next_headerApp <= ro_headerApp;    
+      control <= '1';
       
       case state is
-         when CLOSED =>
-            if i_active_open = '1'  then
+         when CLOSED =>            
+            if i_open = '1'  then  -- active_open
+               ------------------------
+               --construct header sent SYN
+               -----------------------
                next_state <=  SYN_SENT;
-               build header sent SYN
-            elsif i_passive_open = '1' then
+               ro_next_headerApp.src_ip    <= ???????????;
+               ro_next_headerApp.dst_ip    <= ?????????;
+               ro_next_headerApp.src_port    <= ???????????;
+               ro_next_headerApp.dst_port    <= ?????????;
+               ro_next_headerApp.seq_num   <= x"0001";
+               -- omit o_header.ack_num 
+               ro_next_headerApp.reserved  <= "000";
+               ro_next_headerApp.flags     <= "00000010";  --  SENT SYN
+               ro_next_headerApp.window_size  <= x"00"
+               ro_next_headerApp.urgent_ptr   <= x"00"
+               o_forwardTX        <= '1';          -- signat to Tx TO transmit THE SEGMENT 
+               
+             
+            elsif i_open = '0' then  -- passive_open
+               read listeing port and ip from App
                next_state <=  LISTEN;
+            else
+            next_state <= state;
             end if;
             
          when LISTEN =>
             ------------------------
             -- PASSIVE OPEN
             -----------------------
-            if appl_close = '1'  then
+            if i_open = '0'  then   -- appl_close = '1'
                next_state <= CLOSED;
-            elsif i_valid = '1' and i_flags = "000000010" then --- SYN is high
-               --ri_next_header <= ri_header; SAVE THE HEADER
-               ri_next_dest_ip <= ri_dest_ip;
-               ri_next_dest_port <= ri_dest_port;
-               ri_next_source_ip <= 
+            elsif i_valid = '1' and i_header.flags = "000000010" then --- SYN RECEIVED
+               control <= '0';
+               if (ip = i_header.dst_ip) and (port_no = i_header.dst_port)   then
                
-               ri_next_sequence_number
-               SENT SYN,ACK
-               o_header <= i_dest_ip & i_source_ip ..... --counstruct the header for send the SYN,ACK
-               o_ready_TX_engine <= '1'; -- signat to Tx TO SEND THE SEGMENT
+               
+               ro_next_headerRx.src_ip    <= i_header.dst_ip;
+               ro_next_headerRx.dst_ip    <= i_header.src_ip;
+               ro_next_headerRx.seq_num   <= x"0001";
+               ro_next_headerRx.ack_num   <= i_header.seq_num;
+               ro_next_headerRx.reserved  <= "000";
+               ro_next_headerRx.flags     <= "000010010";  --  SENT SYN,ACK
+               ro_next_headerRx.window_size  <= x"00"
+               ro_next_headerRx.urgent_ptr   <= x"00"
+               o_forwardTX        <= '1';          -- signat to Tx TO transmit THE SEGMENT      
+              
                
                next_state <= SYN_RCVD;
                -- NO TIMER HERE
@@ -129,31 +141,35 @@ begin
             
          when SYN_SENT =>
             ------------------------
-            -- ACTIVE OPEN
+            -- 
             -----------------------
-            if appl_close or timeout then
+            if i_open = '0' or timeout then  --  if appl_close or timeout
                next_state <= CLOSED;
                ------------------------
-               -- ?????????????????????????????????????????????????????????
+               -- At this point ,i cannot receive out of order data so i might omit the if at line 196 ????
                -----------------------
-            elsif i_valid = '1' and i_flags = "00000010" !! Here the src dest ip,ports,seq_number should be checked then --- SYN is high
-               --ri_next_header <= ri_header; SAVE THE HEADER !! if wrong ip or port send rst ?
-               ri_next_dest_ip <= ri_dest_ip;
-               ri_next_dest_port <= ri_dest_port;
-               ri_next_source_ip <= 
-               
-               ri_next_sequence_number
-               
-               o_header <= i_dest_ip & i_source_ip ..... --counstruct the header for send the SYN,ACK
-               o_ready_TX_engine <= '1'; -- signat to Tx TO SEND THE SEGMENT
-               SEND SYN,ACK 
-               next_state <= SYN_RCVD;
-               
-            elsif i_valid, synack received , sent ack and goto ESTABLISHED
+            elsif i_valid = '1' and i_header.flags = "00010010"  then --  !! Here the src dest ip,ports,seq_number should be checked SYN ACK recieved
+               if (ro_headerApp.src_ip = i_header.dst_ip) and (ro_headerApp.dst_ip = i_header.src_ip)
+                  and (ro_headerApp.dst_port = i_header.src_port) and (ro_headerApp.src_port = i_header.dst_port) then
+                  if (ro_headerApp.seq_num = i_header.ack_num) then 
+                     ro_next_headerApp.seq_num <= ro_headerApp.seq_num + '1';
+                     ro_next_headerApp.ack_num <= i_header.seq_num;
+                     ro_next_headerApp.flag <= "000100000";
+                     o_forwardTX <= '1';
+                     next_state <= ESTABLISHED;
+                  else
+                     o_discard <= '1';
+                     next_state <= SYN_SENT;
+                  
+                  end if;
+               else
+                  o_discard <= '1';
+                  next_state <= SYN_SENT;
+               end if;   
+          
             
-            else next_state<= SYN_SENT;
-               
-               
+            else 
+               next_state<= SYN_SENT;              
             
             end if;
             
@@ -278,10 +294,9 @@ begin
          
       end case;
    end process comb_logic;
-         
-
-
-
+  
+  
+  
 
 
 
@@ -292,6 +307,14 @@ begin
       begin
          if rising_edge(clk) then
             if reset = '1' then 
+               ri_header   <= (others => '0');.
+               ro_header   <= (others => '0');
+               
+            else
+               ri_header   <= ri_next_header;
+               ro_header   <= ro_next_header;
+               
+            
             
             end if;
          end if;
