@@ -4,28 +4,35 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity rx_engine is
-  generic(ip_length: integer := 32;
-          port_length: integer := 16;
-		  flags_length: integer := 6;
-		  sequence_length: integer := 32;
-		  data_size_length: integer := 32
-    );
   port(
-    i_source_ip       : in std_ulogic_vector(ip_length-1 downto 0);
-    i_dest_ip         : in std_ulogic_vector(ip_length-1 downto 0);
-    i_source_port     : in std_ulogic_vector(port_length-1 downto 0);
-    i_dest_port       : in std_ulogic_vector(port_length-1 downto 0);
-    i_flags           : in std_ulogic_vector(flags_length-1 downto 0);
-    i_sequence_number : in std_ulogic_vector(sequence_length-1 downto 0);
-    i_data_size       : in std_ulogic_vector(data_size_length-1 downto 0);
-    i_valid           : in std_ulogic;
-	clk:		      : in std_ulogic;
-	reset             : in std_ulogic;
+    clk         : in std_ulogic;
+	reset       : in std_ulogic;
+	
+	-- To and from FSM
+    i_forwardRX : in std_ulogic;
+	i_discard   : in std_ulogic;
+	o_header    : out std_ulogic_vector(19*8 downto 0);
+	o_valid     : out std_ulogic;
+	-- AXI-4 between network interface and TOE
+	tvalid      : in std_ulogic;
+	tlast       : in std_ulogic;
+	tready      : out std_ulogic;
+	tdata       : in std_ulogic_vector(7 downto 0);
+	-- Data to the RX buffer
+	o_address   : out std_ulogic_vector(15 downto 0);
+	o_data      : in std_ulogic_vector(7 downto 0);
+	o_we        : out std_ulogic;
   );
 end rx_engine;
 
-architecture rx_engine_behaviour of rx_engine is
+entity
 
+architecture rx_engine_behaviour of rx_engine is
+  type state_t is (pseudo_header_read, header_read, read_data);
 begin
+  process()
+  begin
+
+  end process;  
 
 end rx_engine_behaviour;
