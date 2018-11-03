@@ -35,9 +35,9 @@ architecture rx_engine_behaviour of rx_engine is
   
   signal header_buffer: header_buffer_t;
   signal state, state_next: state_t;
-  signal count, count_next, header_count, header_count_next: std_ulogic_vector(15 downto 0);
-  signal checksum, checksum_next: std_ulogic_vector(15 downto 0);
-  signal byte2, byte2_next: std_ulogic; --forms two bit word
+  signal count, count_next, header_count, header_count_next: std_ulogic_vector(15 downto 0) := (others => '0');
+  signal checksum, checksum_next: std_ulogic_vector(15 downto 0) := (others => '0');
+  signal byte2, byte2_next: std_ulogic := '0'; --forms two bit word
   
 begin
   comb: process(state, tvalid, tlast, tdata, i_forwardRX, i_discard)

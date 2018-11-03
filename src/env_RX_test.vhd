@@ -63,9 +63,9 @@ comb: process(i, state, data)
 begin
    state_next <= state;
    i_next <= i;
-   tvalid <= '1';
    tdata <= data;
    tlast <= '0';
+   tvalid <= '0';
    
    case state is
       when start =>

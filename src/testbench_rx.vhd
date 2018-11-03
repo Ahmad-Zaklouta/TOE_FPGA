@@ -44,7 +44,7 @@ architecture behavioural of testbench_rx is
     );
   end component;
   
-  signal clk: std_ulogic;
+  signal clk: std_ulogic := '0';
   signal reset: std_ulogic;
   signal tvalid: std_ulogic;
   signal tlast: std_ulogic;
@@ -54,6 +54,10 @@ architecture behavioural of testbench_rx is
 begin
 
 reset<='1', '0' after 50 ns;
+clk_proc: process(clk)
+begin
+    clk <= not clk after 5 ns;
+end process;
 
 dut: rx_engine port map(clk => clk, reset => reset, tvalid => tvalid, tlast => tlast, tdata => tdata, tready => open,
                         i_forwardRX => '0', i_discard => '0', o_header => open, o_valid => open,
