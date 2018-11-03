@@ -2,7 +2,9 @@ use std.textio.all;
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use tcp_common.all;
+
+library work;
+use work.tcp_common.all;
 
 entity rx_engine is
   port(
@@ -22,11 +24,10 @@ entity rx_engine is
 	-- Data to the RX buffer
 	o_address   : out std_ulogic_vector(15 downto 0);
 	o_data      : out std_ulogic_vector(7 downto 0);
-	o_we        : out std_ulogic;
+	o_we        : out std_ulogic
   );
 end rx_engine;
 
-entity
 
 architecture rx_engine_behaviour of rx_engine is
   type state_t is (await, pseudo_header_read, header_read, read_data, wait_toe);
@@ -35,7 +36,7 @@ architecture rx_engine_behaviour of rx_engine is
   signal header_buffer: header_buffer_t;
   signal state, state_next: state_t;
   signal count, count_next, header_count, header_count_next: std_ulogic_vector(15 downto 0);
-  signal checksum, checksum_next: std_ulogic_vector(7 downto 0);
+  signal checksum, checksum_next: std_ulogic_vector(15 downto 0);
   signal byte2, byte2_next: std_ulogic; --forms two bit word
   
 begin
@@ -47,27 +48,27 @@ begin
     case state is
 	  when await =>
 	    if (tvalid = '1') then
-		  checksum_next <= checksum(7) xor tdata(7) & checksum(6) xor tdata(6) & checksum(5) xor tdata(5) & checksum(4) xor tdata(4) & checksum(3) xor tdata(3) & checksum(2) xor tdata(2) & checksum(1) xor tdata(1) & checksum(0) xor tdata(0) ;
+		  checksum_next <= X"00" & (checksum(7) xor tdata(7)) & (checksum(6) xor tdata(6)) & (checksum(5) xor tdata(5)) & (checksum(4) xor tdata(4)) & (checksum(3) xor tdata(3)) & (checksum(2) xor tdata(2)) & (checksum(1) xor tdata(1)) & (checksum(0) xor tdata(0));
 		  byte2_next <= not byte2;
 		  count_next <= std_ulogic_vector(unsigned(count) + 1);
 		  header_count_next <= std_ulogic_vector(unsigned(header_count) + 1);
-          header_buffer(0) <= tdata
+          header_buffer(0) <= tdata;
 		  state_next <= pseudo_header_read;
 		end if;
 	  when pseudo_header_read =>
 	    if (tvalid = '1') then
 		  byte2_next <= not byte2;
 		  if(byte2 = '0') then
-		    checksum_next <= checksum(7) xor tdata(7) & checksum(6) xor tdata(6) & checksum(5) xor tdata(5) & checksum(4) xor tdata(4) & checksum(3) xor tdata(3) & checksum(2) xor tdata(2) & checksum(1) xor tdata(1) & checksum(0) xor tdata(0) ;
+		    checksum_next <=checksum(15 downto 8) & (checksum(7) xor tdata(7)) & (checksum(6) xor tdata(6)) & (checksum(5) xor tdata(5)) & (checksum(4) xor tdata(4)) & (checksum(3) xor tdata(3)) & (checksum(2) xor tdata(2)) & (checksum(1) xor tdata(1)) & (checksum(0) xor tdata(0));
 	      else
-		    checksum_next <= checksum(15) xor tdata(7) & checksum(14) xor tdata(6) & checksum(13) xor tdata(5) & checksum(12) xor tdata(4) & checksum(11) xor tdata(3) & checksum(10) xor tdata(2) & checksum(9) xor tdata(1) & checksum(8) xor tdata(0);
+		    checksum_next <= (checksum(15) xor tdata(7)) & (checksum(14) xor tdata(6)) & (checksum(13) xor tdata(5)) & (checksum(12) xor tdata(4)) & (checksum(11) xor tdata(3)) & (checksum(10) xor tdata(2)) & (checksum(9) xor tdata(1)) & (checksum(8) xor tdata(0)) & checksum(7 downto 0);
 		  end if;
 		  if (unsigned(count) < 11) then
 		    if(unsigned(header_count) < 7) then
-		      header_buffer(unsigned(header_count)) <= tdata;
+		      header_buffer(to_integer(unsigned(header_count))) <= tdata;
 			  header_count_next <= std_ulogic_vector(unsigned(header_count) + 1);
 			elsif(unsigned(header_count) = 7) then
-			  header_buffer(unsigned(header_count)) <= tdata;
+		      header_buffer(to_integer(unsigned(header_count))) <= tdata;
 			  header_count_next <= std_ulogic_vector(unsigned(header_count) + 1);
 			end if;  
 		  else
@@ -76,32 +77,32 @@ begin
 		end if;
 	  when header_read =>
 	    if(tvalid = '1') then  
-		    byte2_next <= not byte2;
-		    if(byte2 = '0') then
-		      checksum_next <= checksum(7) xor tdata(7) & checksum(6) xor tdata(6) & checksum(5) xor tdata(5) & checksum(4) xor tdata(4) & checksum(3) xor tdata(3) & checksum(2) xor tdata(2) & checksum(1) xor tdata(1) & checksum(0) xor tdata(0) ;
-	        else
-		      checksum_next <= checksum(15) xor tdata(7) & checksum(14) xor tdata(6) & checksum(13) xor tdata(5) & checksum(12) xor tdata(4) & checksum(11) xor tdata(3) & checksum(10) xor tdata(2) & checksum(9) xor tdata(1) & checksum(8) xor tdata(0);
-		    end if;
-		  if (unsigned(count < 31) then
-		    header_buffer(unsigned(header_count)) <= tdata;
+		  byte2_next <= not byte2;
+		  if(byte2 = '0') then
+		    checksum_next <=checksum(15 downto 8) & (checksum(7) xor tdata(7)) & (checksum(6) xor tdata(6)) & (checksum(5) xor tdata(5)) & (checksum(4) xor tdata(4)) & (checksum(3) xor tdata(3)) & (checksum(2) xor tdata(2)) & (checksum(1) xor tdata(1)) & (checksum(0) xor tdata(0));
+	      else
+		    checksum_next <= (checksum(15) xor tdata(7)) & (checksum(14) xor tdata(6)) & (checksum(13) xor tdata(5)) & (checksum(12) xor tdata(4)) & (checksum(11) xor tdata(3)) & (checksum(10) xor tdata(2)) & (checksum(9) xor tdata(1)) & (checksum(8) xor tdata(0)) & checksum(7 downto 0);
+		  end if;
+		  if (unsigned(count) < 31) then
+		      header_buffer(to_integer(unsigned(header_count))) <= tdata;
 		    header_count_next <= std_ulogic_vector(unsigned(header_count) + 1);
 		  else
-		    header_buffer(unsigned(header_count)) <= tdata;
+		    header_buffer(to_integer(unsigned(header_count))) <= tdata;
 		    header_count_next <= std_ulogic_vector(unsigned(header_count) + 1);
-			if(tlast = '1') then
+		  end if;
+	      if(tlast = '1') then
 			  state_next <= wait_toe;
 		    else
 			  state_next <= read_data;
-			end if;
 		  end if;
 		end if;
 	  when read_data =>
 	    if(tvalid = '1') then
 	      byte2_next <= not byte2;
 		  if(byte2 = '0') then
-		      checksum_next <= checksum(7) xor tdata(7) & checksum(6) xor tdata(6) & checksum(5) xor tdata(5) & checksum(4) xor tdata(4) & checksum(3) xor tdata(3) & checksum(2) xor tdata(2) & checksum(1) xor tdata(1) & checksum(0) xor tdata(0) ;
+		      checksum_next <= checksum(15 downto 8) & (checksum(7) xor tdata(7)) & (checksum(6) xor tdata(6)) & (checksum(5) xor tdata(5)) & (checksum(4) xor tdata(4)) & (checksum(3) xor tdata(3)) & (checksum(2) xor tdata(2)) & (checksum(1) xor tdata(1)) & (checksum(0) xor tdata(0));
 	      else
-		      checksum_next <= checksum(15) xor tdata(7) & checksum(14) xor tdata(6) & checksum(13) xor tdata(5) & checksum(12) xor tdata(4) & checksum(11) xor tdata(3) & checksum(10) xor tdata(2) & checksum(9) xor tdata(1) & checksum(8) xor tdata(0);
+		      checksum_next <= (checksum(15) xor tdata(7)) & (checksum(14) xor tdata(6)) & (checksum(13) xor tdata(5)) & (checksum(12) xor tdata(4)) & (checksum(11) xor tdata(3)) & (checksum(10) xor tdata(2)) & (checksum(9) xor tdata(1)) & (checksum(8) xor tdata(0)) & checksum(7 downto 0);
 		  end if;
 		  if (tlast = '1') then
 		    state_next <= wait_toe;
@@ -124,13 +125,11 @@ begin
     if (rising_edge(clk) and reset = '1') then
 	  state <= await;
 	  count <= (others => '0');
-	  half_word <= (others => '0');
 	  byte2 <= '0';
 	  checksum <= (others => '0');
-	elsif (rising_edge(clk)
+	elsif (rising_edge(clk)) then
 	  state <= state_next;
 	  count <= count_next;
-	  half_word <= half_word_next;
 	  byte2 <= byte2_next;
 	  checksum <= checksum_next;
 	end if;

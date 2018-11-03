@@ -5,18 +5,18 @@ USE IEEE.numeric_std.ALL;
 
 entity env is
   port ( 
-    clk            : in std_logic; -- system clock
-    reset          : in std_logic; -- asynchronous reset
-	tvalid         : out std_logic;
-	tready         : in std_logic;
-	tdata          : out std_logic_vector(7 downto 0);
-	tlast          : out std_logic
+    clk            : in std_ulogic; -- system clock
+    reset          : in std_ulogic; -- asynchronous reset
+	tvalid         : out std_ulogic;
+	tready         : in std_ulogic;
+	tdata          : out std_ulogic_vector(7 downto 0);
+	tlast          : out std_ulogic
   );
 end env;
 
 architecture behavioural of env is
   type state_t is (start, start_tx, send_data, prefinish, finish);
-  type FRAME_1 is array(0 to 31) of std_logic_vector(7 downto 0);
+  type FRAME_1 is array(0 to 31) of std_ulogic_vector(7 downto 0);
   signal state, state_next : state_t;
   constant frame : FRAME_1 := (X"0a",
 X"10",
@@ -52,7 +52,7 @@ X"00",
 X"00"
 );
   signal i, i_next: integer := 0;
-  signal data: std_logic_vector(7 downto 0);
+  signal data: std_ulogic_vector(7 downto 0);
 
 begin
 
@@ -69,7 +69,7 @@ begin
    
    case state is
       when start =>
-	    data_out <= (others => '0');
+	    tdata <= (others => '0');
 	    state_next <= start_tx;
 	  when start_tx =>
 	    tvalid <= '1';
