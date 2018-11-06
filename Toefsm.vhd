@@ -216,8 +216,7 @@ begin
             
             elsif i_valid  = '1' and i_header.flags = x"10" then --ACK
                if ro_headeRx.dst_ip = i_header.src_ip and ro_headeRx.dst_port = i_header.src_port and 
-                  ro_headeRx.src_port = i_header.dst_port and i_header.ack_num = ro_headerRx.seq_num + 1 and
-                  ro_headerRx.ack_num = i_header.seq_num + 1 then 
+                  ro_headeRx.src_port = i_header.dst_port and ro_headerRx.ack_num = i_header.seq_num + 1 then 
                   -- only here i know his next seq number MUST BE +1
                   
                   ro_next_headeRx.seq_num <= i_header.ack_num;
@@ -346,20 +345,41 @@ begin
             ------------------------
             -- ACTIVE OPEN
             -----------------------
-            if timeout go to? ??? CLOSED??
-            elsif i_valid
-               if received FIN 
-                  send ack 
+            
+            r_next_acktimerApp <= r_acktimerApp + 1;
+            r_next_timeout <= r_timeout +1;
+            
+            if r_timeout = CONNECTION_TIMEOUT then  --  if appl_close or timeout
+               next_state <= CLOSED;
+            elsif r_acktimerApp = ACK_TIMEOUT then -- if no ack received send again the SYN
+               
+               --  SENT FIN AGAIN               
+               o_forwardTX <= '1';
+               r_next_acktimerApp <= (others => '0');    
+        
+            elsif i_valid = '1' and ro_headeRx.dst_ip = i_header.src_ip and ro_headeRx.dst_port = i_header.src_port and 
+               i_header.seq_num = ro_headeRx.seq_num + 1 then
+               r_next_acktimerApp <= (others => '0');    -- check
+               if ro_headeRx.flags = x"1" then
+                  ro_next_headeRx.ack_num <= ro_headeRx.ack_num + 1;
+                  ro_next_headeRx.flags <= x"10";  --SENT ACK
+                  o_forwardTX <= '1';
+                  r_next_timeout <= (others => '0');   
                   next_state <= CLOSING;
-               elsif received ack of fin in established state
-                  next_state <= FIN_WAIT_2;
-               elsif receivedfin,ack
-                  send ack
+               elsif ro_headeRx.flags = x"11" then -- FIN ACK REVEIVED   
+                  ro_next_headeRx.ack_num <= ro_headeRx.ack_num + 1;
+                  ro_next_headeRx.flags <= x"10";  --SENT ACK
+                  o_forwardTX <= '1';
+                  r_next_timeout <= (others => '0'); 
                   next_state <= TIME_WAIT;
                else 
-                  next_state <= FIN_WAIT_1;
-            end if;
-         when FIN_WAIT_2 =>
+               next_state <= FIN_WAIT_1;
+               end if;
+            else 
+               next_state <= FIN_WAIT_1;
+            end if;   
+             
+         when FIN_WAIT_2 => -- NOT TAKEN INTO CONSIDERATION
             ------------------------
             -- ACTIVE OPEN
             -----------------------
@@ -370,16 +390,32 @@ begin
                   next_state <= TIME_WAIT;
             else 
                next_state <= FIN_WAIT_2;
-         when CLOSING =>
-            if timeout go to? ??? CLOSED??
-            elsif i_valid then
-               if receive ack 
-               next_state <=TIME_WAIT;
+               
+         when CLOSING =>  -- MIGHT NEED TO OMIT THAT AS WELL (SIMULTANEOUS)
+            r_next_acktimerApp <= r_acktimerApp + 1;
+            r_next_timeout <= r_timeout +1;
+            
+            if r_timeout = CONNECTION_TIMEOUT then  --  if appl timeouts
+               next_state <= CLOSED;
+            elsif r_acktimerApp = ACK_TIMEOUT then -- if no ack received send again the ACK
+               
+               --  SENT ACK AGAIN               
+               o_forwardTX <= '1';
+            elsif i_valid = '1' and ro_headeRx.dst_ip = i_header.src_ip and ro_headeRx.dst_port = i_header.src_port and 
+               ro_headeRx.seq_num = i_header.ack_num  then
+               next_state <= TIME_WAIT;
+               r_next_timeout <= (others => '0');  
+               r_next_acktimer <= (others => '0'); 
             else 
-               next_state <= LAST_ACK;
+               next_state <= CLOSING;
+            end if;
          
          when TIME_WAIT =>
-            wait for some time the go to closed state
+            r_next_timeout <= r_timeout +1;
+            if r_timeout = CONNECTION_TIMEOUT then  --  2MSL? CHECK RFC
+               r_next_timeout <= (others => '0');  
+               next_state <= CLOSED;
+            
          when CLOSE_WAIT =>
          
            -- IF RECEIVE PACKET HERE DISCARD??
