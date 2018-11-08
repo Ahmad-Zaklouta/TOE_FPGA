@@ -33,20 +33,31 @@ architecture rx_engine_behaviour of rx_engine is
   type state_t is (await, pseudo_header_read, header_read, read_data, wait_toe);
   type header_buffer_t is array(0 to 27) of std_ulogic_vector(7 downto 0);
   
+  signal header_register, header_register_next: t_tcp_header;
   signal header_buffer: header_buffer_t;
   signal state, state_next: state_t;
   signal count, count_next, header_count, header_count_next: std_ulogic_vector(15 downto 0) := (others => '0');
   signal checksum, checksum_next: std_ulogic_vector(15 downto 0) := (others => '0');
   signal byte2, byte2_next: std_ulogic := '0'; --forms two bit word
+  signal header13,header14, header15, header16, header17, header18, header19, header20: std_ulogic_vector(7 downto 0);
   
 begin
   comb: process(state, tvalid, tlast, tdata, i_forwardRX, i_discard)
   begin
     tready <= '1';
 	o_valid <= '0';
+	header13 <= header_buffer(20);
+	header14 <= header_buffer(21);
+	header15 <= header_buffer(22);
+	header16 <= header_buffer(23);
+	header17 <= header_buffer(24);
+	header18 <= header_buffer(25);
+	header19 <= header_buffer(26); 
+	header20 <= header_buffer(27);
 	
     case state is
 	  when await =>
+	    -- await for data from AXI bus
 	    if (tvalid = '1') then
 		  checksum_next <= X"00" & (checksum(7) xor tdata(7)) & (checksum(6) xor tdata(6)) & (checksum(5) xor tdata(5)) & (checksum(4) xor tdata(4)) & (checksum(3) xor tdata(3)) & (checksum(2) xor tdata(2)) & (checksum(1) xor tdata(1)) & (checksum(0) xor tdata(0));
 		  byte2_next <= not byte2;
@@ -56,8 +67,10 @@ begin
 		  state_next <= pseudo_header_read;
 		end if;
 	  when pseudo_header_read =>
+	    -- read the pseudo header
 	    if (tvalid = '1') then
 		  byte2_next <= not byte2;
+		  count_next <= std_ulogic_vector(unsigned(count) + 1);
 		  if(byte2 = '0') then
 		    checksum_next <=checksum(15 downto 8) & (checksum(7) xor tdata(7)) & (checksum(6) xor tdata(6)) & (checksum(5) xor tdata(5)) & (checksum(4) xor tdata(4)) & (checksum(3) xor tdata(3)) & (checksum(2) xor tdata(2)) & (checksum(1) xor tdata(1)) & (checksum(0) xor tdata(0));
 	      else
@@ -76,24 +89,39 @@ begin
 		  end if;
 		end if;
 	  when header_read =>
+	    -- 
 	    if(tvalid = '1') then  
 		  byte2_next <= not byte2;
+		  count_next <= std_ulogic_vector(unsigned(count) + 1);
 		  if(byte2 = '0') then
 		    checksum_next <=checksum(15 downto 8) & (checksum(7) xor tdata(7)) & (checksum(6) xor tdata(6)) & (checksum(5) xor tdata(5)) & (checksum(4) xor tdata(4)) & (checksum(3) xor tdata(3)) & (checksum(2) xor tdata(2)) & (checksum(1) xor tdata(1)) & (checksum(0) xor tdata(0));
 	      else
 		    checksum_next <= (checksum(15) xor tdata(7)) & (checksum(14) xor tdata(6)) & (checksum(13) xor tdata(5)) & (checksum(12) xor tdata(4)) & (checksum(11) xor tdata(3)) & (checksum(10) xor tdata(2)) & (checksum(9) xor tdata(1)) & (checksum(8) xor tdata(0)) & checksum(7 downto 0);
 		  end if;
 		  if (unsigned(count) < 31) then
-		      header_buffer(to_integer(unsigned(header_count))) <= tdata;
+		    header_buffer(to_integer(unsigned(header_count))) <= tdata;
 		    header_count_next <= std_ulogic_vector(unsigned(header_count) + 1);
 		  else
 		    header_buffer(to_integer(unsigned(header_count))) <= tdata;
 		    header_count_next <= std_ulogic_vector(unsigned(header_count) + 1);
-		  end if;
-	      if(tlast = '1') then
-			  state_next <= wait_toe;
+			header_register_next.src_ip      <= header_buffer(0) & header_buffer(1) & header_buffer(2) & header_buffer(3);
+			header_register_next.dst_ip      <= header_buffer(4) & header_buffer(5) & header_buffer(6) & header_buffer(7);
+			header_register_next.src_port    <= unsigned(header_buffer(8)) & unsigned(header_buffer(9));
+			header_register_next.dst_port    <= unsigned(header_buffer(10)) & unsigned(header_buffer(11));
+			header_register_next.seq_num     <= unsigned(header_buffer(12)) & unsigned(header_buffer(13)) & unsigned(header_buffer(14)) & unsigned(header_buffer(15));
+			header_register_next.ack_num     <= unsigned(header_buffer(16)) & unsigned(header_buffer(17)) & unsigned(header_buffer(18)) & unsigned(header_buffer(19));
+			header_register_next.data_offset <= unsigned(header13(7 downto 4));
+			header_register_next.reserved    <= header13(3 downto 1);
+			header_register_next.flags       <= header13(0) & header14;
+			header_register_next.window_size <= unsigned(header15) & unsigned(header16);
+			header_register_next.checksum    <= header17 & header18;
+			header_register_next.urgent_ptr  <= unsigned(header_buffer(26)) & unsigned(tdata);
+			-- create a header
+	        if(tlast = '1') then
+			  state_next <= await;
 		    else
 			  state_next <= read_data;
+		    end if;
 		  end if;
 		end if;
 	  when read_data =>
@@ -132,6 +160,8 @@ begin
 	  count <= count_next;
 	  byte2 <= byte2_next;
 	  checksum <= checksum_next;
+	  header_count <= header_count_next;
+	  header_register <= header_register_next;
 	end if;
   end process;
 end rx_engine_behaviour;
