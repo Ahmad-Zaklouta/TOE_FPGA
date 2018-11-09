@@ -39,6 +39,7 @@ architecture rx_engine_behaviour of rx_engine is
   signal count, count_next, header_count, header_count_next: std_ulogic_vector(15 downto 0) := (others => '0');
   signal checksum, checksum_next: std_ulogic_vector(15 downto 0) := (others => '0');
   signal byte2, byte2_next: std_ulogic := '0'; --forms two bit word
+  signal byte_prev: std_ulogic
   signal header13,header14, header15, header16, header17, header18, header19, header20: std_ulogic_vector(7 downto 0);
   
 begin
