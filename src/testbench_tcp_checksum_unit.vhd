@@ -5,10 +5,10 @@ USE IEEE.numeric_std.ALL;
 library work;
 use work.tcp_common.all;
 
-entity testbench_rx is
-end testbench_rx;
+entity testbench_tcp_unit is
+end testbench_tcp_unit;
 
-architecture behavioural of testbench_rx is
+architecture behavioural of testbench_tcp_unit is
   component tcp_checksum_unit is
     port(
       clk: in std_ulogic;
@@ -20,7 +20,7 @@ architecture behavioural of testbench_rx is
 	  i_end_checksum: in std_ulogic;
 	  o_checksum_comp_finished: out std_ulogic;
 	  o_error: out std_ulogic;
-	  o_checksum: out std_ulogic_vector(15 downto 0);
+	  o_checksum: out std_ulogic_vector(15 downto 0)
    );
   
   end component;
