@@ -7,6 +7,7 @@ package tcp_common is
 	subtype t_tcp_port is unsigned(15 downto 0);
 	subtype t_seq_num is unsigned(31 downto 0);
 	subtype t_byte is std_ulogic_vector(7 downto 0);
+	type t_tcp_header_buffer is array (19 downto 0)
 
 	type t_tcp_header is record
 		src_ip : t_ipv4_address;
@@ -24,6 +25,11 @@ package tcp_common is
 		urgent_ptr : unsigned(15 downto 0);
 	end record;
 
+	function tcp_header_get_byte (
+		header : t_tcp_header;
+		index : integer range 0 to 27
+	) return t_byte;
+
 	function ipv4_address (
 		b0 : integer range 0 to 255;
 		b1 : integer range 0 to 255;
@@ -34,6 +40,22 @@ package tcp_common is
 	function tcp_port (
 		n : integer range 0 to 65535
 	) return t_tcp_port;
+
+	constant c_default_tcp_header : t_tcp_header := (
+		src_ip <= ipv4_address(0, 0, 0, 0),
+		dst_ip <= ipv4_address(0, 0, 0, 0),
+		src_port <= tcp_port(0),
+		dst_port <= tcp_port(0),
+		seq_num <= (others => '0'),
+		ack_num <= (others => '0'),
+		data_offset <= (others => '0'),
+		reserved <= (others => '0'),
+		flags <= (others => '0'),
+		window_size <= (others => '0'),
+		checksum <= (others => '0'),
+		urgent_ptr <= (others => '0')
+	);
+
 end package tcp_common;
 
 package body tcp_common is
@@ -58,4 +80,25 @@ package body tcp_common is
 	begin
 		return to_unsigned(n, t_tcp_port'length);
 	end function;
+
+	function tcp_header_get_byte (
+		header : t_tcp_header;
+		index : integer range 0 to 27
+	) return t_byte is
+		variable ret;
+	begin
+		case index is
+			when 0 => ret := header.src_ip(31 downto 24);
+			when 1 => ret := header.src_ip(23 downto 16);
+			when 2 => ret := header.src_ip(15 downto  8);
+			when 3 => ret := header.src_ip( 7 downto  0);
+
+			when 4 => ret := header.dst_ip(31 downto 24);
+			when 5 => ret := header.dst_ip(23 downto 16);
+			when 6 => ret := header.dst_ip(15 downto  8);
+			when 7 => ret := header.dst_ip( 7 downto  0);
+			-- WIP
+		end case;
+	end function;
+
 end tcp_common;
