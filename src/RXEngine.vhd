@@ -8,7 +8,7 @@ use work.tcp_common.all;
 
 entity rx_engine is
   generic(
-      memory_address_bits: natural := 32
+      memory_address_bits: natural := 14
 	);
   port(
     clk         : in std_ulogic;
