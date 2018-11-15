@@ -2,11 +2,14 @@ use std.textio.all;
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+
+library work;
 use tcp_common.all;	
 
 entity rx_buffer is
   generic(
-    memory_address_bits: natural := 14
+    memory_address_bits: natural := 14;
+	data_size          : natural := 16
   );
   port(
     clk            : in std_ulogic;
@@ -17,38 +20,48 @@ entity rx_buffer is
 	tvalid         : out std_ulogic;
 	tlast          : out std_ulogic;
 	tready         : in std_ulogic;
-	tdata          : out std_ulogic_vector(7 downto 0);
+	tdata          : out std_ulogic_vector(data_size-1 downto 0);
 	-- between RX Engine and buffer
 	o_read_address : out std_ulogic_vector(memory_address_bits downto 0);
     i_data_length  : in std_ulogic_vector(13 downto 0);
 	i_write_address: in std_ulogic_vector(memory_address_bits downto 0);
+	i_data         : in std_ulogic_vector(data_size-1 downto 0);
+	i_we           : in std_ulogic;
 	o_ready        : out std_ulogic;
   );
 end rx_buffer;	
 
 architecture behavioural of rx_buffer is
-  component Memory is
-    Port ( wclk          : in STD_LOGIC;
-           rclk          : in std_logic;
-		   waddr         : in std_logic_vector(3 downto 0);
-           raddr         : in std_logic_vector(3 downto 0);
-           wen           : in STD_LOGIC;
-           ren           : in STD_LOGIC;
-           write_data_in : in std_logic_vector(7 downto 0);
-           read_data_out : out std_logic_vector(7 downto 0)
-		   );
-  end component;
+  component memory_large is
+    generic(
+		memory_size: natural := 16;
+		data_length: natural := 16
+	)
+    Port ( clk : in STD_LOGIC;
+           we : in STD_LOGIC;
+           en : in STD_LOGIC;
+           addr_w : in STD_LOGIC_VECTOR (memory_size-1 downto 0);
+           addr_r : in STD_LOGIC_VECTOR (memory_size-1 downto 0);
+		   di : in STD_LOGIC_VECTOR (data_length downto 0);
+           do : out STD_LOGIC_VECTOR (data_length downto 0);
+   end component;
 
   type state_t is (await, forward_data);
   
   signal state, state_next: state_t;
   signal read_address, read_address_next : std_ulogic_vector(memory_address_bits downto 0);
   signal data_to_send, data_to_send_next : std_ulogic_vector(13 downto 0);
+  signal read_enabled                    : std_ulogic;
 begin
    empty <= '1' when (read_address = i_write_address) else '0';
-   tdata <= ...;
   
-  comb: process()
+  mem: Memory generic(memory_address_bits, data_size)
+			  port map(clk => clk, we => i_we, en => read_enabled,
+			           addr_w => i_write_address, addr_r => read_address
+					   do => tdata, di =>    i_data);
+  
+  comb: process(state, i_forwardRX, forward_data, i_data_length, 
+				read_address, data_to_send)
   begin
     o_ready <= '1';
 	
@@ -59,24 +72,31 @@ begin
 		  data_to_send_next <= i_data_length
 		end if;
       when forward_data	=>
-        if (empty = '1' ) then
-        
-        elsif (tready = '1') then
+	    ready <= '0';
+	  
+        if (empty = '1' or tready = '0') then
+           -- do nothing
+        else
 		  read_address_next <= std_ulogic_vector(unsigned(read_address) + 1);
 	      data_to_send_next <= std_ulogic(unsigned(data_to_send) - 1);
 		  if (unsigned(data_to_send) = 1) then
 		    tlast <= '1';
 			state_next <= await;
 		  end if;
+		end if;
     end case;	  
   end process;
   
   seq: process(clk)
   begin
     if (rising_edge(clk) and reset = '1') then
-	
+	   state <= await;
+	   read_address <= (others => '0');
+	   data_to_send <= (others => '0');
 	elsif (rising_edge(clk)) then
-	
+	   state <= state_next;
+	   read_address <= read_address_next;
+	   data_to_send <= data_to_send_next;
 	end if;
   end process;
   
