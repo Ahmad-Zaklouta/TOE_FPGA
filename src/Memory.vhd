@@ -43,13 +43,13 @@ entity memory_large is
            en : in std_ulogic;
            addr_r : in std_ulogic_VECTOR (memory_size-1 downto 0);
            addr_w : in std_ulogic_VECTOR (memory_size-1 downto 0);
-           di : in std_ulogic_VECTOR (data_length downto 0);
-           do : out std_ulogic_VECTOR (data_length downto 0)
+           di : in std_ulogic_VECTOR (data_length-1 downto 0);
+           do : out std_ulogic_VECTOR (data_length-1 downto 0)
 		   );
 end memory_large;
 
 architecture Behavioral of memory_large is
-    type ram_t is array(2**memory_size - 1 downto 0) of std_ulogic_vector(data_length downto 0);
+    type ram_t is array(2**memory_size - 1 downto 0) of std_ulogic_vector(data_length-1 downto 0);
     shared variable RAM: ram_t;
 begin
     process(clk)

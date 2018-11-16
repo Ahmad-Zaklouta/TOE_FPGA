@@ -50,20 +50,22 @@ architecture behavioural of rx_buffer is
   type state_t is (await, forward_data);
   
   signal state, state_next: state_t;
-  signal read_address, read_address_next : std_ulogic_vector(memory_address_bits downto 0);
+  signal read_address, read_address_next : std_ulogic_vector(memory_address_bits downto 0) := (others => '0');
   signal data_to_send, data_to_send_next : std_ulogic_vector(13 downto 0);
-  signal read_enabled, empty : std_ulogic;
+  signal read_enabled : std_ulogic;
 begin
-  empty <= '1' when (read_address = i_write_address) else '0';
   
   mem: memory_large generic map(memory_address_bits, data_size)
 			  port map(clk => clk, we => i_we, en => read_enabled,
-			           addr_w => i_write_address, addr_r => read_address,
+			           addr_w => i_write_address(memory_address_bits-1 downto 0), addr_r => read_address(memory_address_bits-1 downto 0),
 					   do => tdata, di =>    i_data);
   
   comb: process(state, i_forwardRX, i_data_length, read_address, data_to_send)
   begin
     o_ready <= '1';
+	read_enabled <= '0';
+	tvalid <= '0';
+	tlast <= '0';
 	
     case state is
       when await =>
@@ -74,12 +76,14 @@ begin
       when forward_data	=>
 	    o_ready <= '0';
 	  
-        if (empty = '1' or tready = '0') then
+        if (tready = '0') then
            -- do nothing
         else
+		  read_enabled <= '1';
+		  tvalid <= '1';
 		  read_address_next <= std_ulogic_vector(unsigned(read_address) + 1);
 	      data_to_send_next <= std_ulogic_vector(unsigned(data_to_send) - 1);
-		  if (unsigned(data_to_send) = 1) then
+		  if (unsigned(data_to_send) = 0) then
 		    tlast <= '1';
 			state_next <= await;
 		  end if;
