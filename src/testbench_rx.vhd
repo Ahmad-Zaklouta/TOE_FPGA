@@ -10,6 +10,9 @@ end testbench_rx;
 
 architecture behavioural of testbench_rx is
   component rx_engine is
+    generic(
+      memory_address_bits: natural := 14
+	);
     port(
       clk         : in std_ulogic;
 	  reset       : in std_ulogic;
@@ -19,6 +22,7 @@ architecture behavioural of testbench_rx is
 	  i_discard   : in std_ulogic;
 	  o_header    : out t_tcp_header;
 	  o_valid     : out std_ulogic;
+	  o_data_len  : out std_ulogic_vector(15 downto 0);
 	  -- AXI-4 between network interface and TOE
 	  tvalid      : in std_ulogic;
 	  tlast       : in std_ulogic;
@@ -27,7 +31,9 @@ architecture behavioural of testbench_rx is
 	  -- Data to the RX buffer
 	  o_address   : out std_ulogic_vector(15 downto 0);
 	  o_data      : out std_ulogic_vector(7 downto 0);
-	  o_we        : out std_ulogic
+	  o_we        : out std_ulogic;
+	  i_address_r : in  std_ulogic_vector(memory_address_bits downto 0);
+	  i_ready_TOE : in std_ulogic
     );
   end component;
 
@@ -60,7 +66,7 @@ begin
 end process;
 
 dut: rx_engine port map(clk => clk, reset => reset, tvalid => tvalid, tlast => tlast, tdata => tdata, tready => open,
-                        i_forwardRX => '0', i_discard => '0', o_header => open, o_valid => open,
-						o_address => open, o_data => open, o_we => open);
+                        i_forwardRX => '0', i_discard => '0', o_header => open, o_valid => open, o_data_len => open,
+						o_address => open, o_data => open, o_we => open, i_ready_TOE => '1', i_address_r => (others => '1'));
 environment: env port map(clk => clk, reset => reset, tvalid => tvalid, tlast => tlast, tdata => tdata, tready => '0');
 end behavioural;

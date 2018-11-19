@@ -23,7 +23,7 @@ entity rx_buffer is
 	tdata          : out std_ulogic_vector(data_size-1 downto 0);
 	-- between RX Engine and buffer
 	o_read_address : out std_ulogic_vector(memory_address_bits downto 0);
-    i_data_length  : in std_ulogic_vector(13 downto 0);
+    i_data_length  : in std_ulogic_vector(15 downto 0);
 	i_write_address: in std_ulogic_vector(memory_address_bits downto 0);
 	i_data         : in std_ulogic_vector(data_size-1 downto 0);
 	i_we           : in std_ulogic;
@@ -51,7 +51,7 @@ architecture behavioural of rx_buffer is
   
   signal state, state_next: state_t;
   signal read_address, read_address_next : std_ulogic_vector(memory_address_bits downto 0) := (others => '0');
-  signal data_to_send, data_to_send_next : std_ulogic_vector(13 downto 0);
+  signal data_to_send, data_to_send_next : std_ulogic_vector(15 downto 0);
   signal read_enabled : std_ulogic;
 begin
   

@@ -19,6 +19,7 @@ entity rx_engine is
 	i_discard   : in std_ulogic;
 	o_header    : out t_tcp_header;
 	o_valid     : out std_ulogic;
+	o_data_len  : out std_ulogic_vector(15 downto 0);
 	-- AXI-4 between network interface and TOE
 	tvalid      : in std_ulogic;
 	tlast       : in std_ulogic;
@@ -28,7 +29,8 @@ entity rx_engine is
 	o_address   : out std_ulogic_vector(memory_address_bits downto 0);
 	o_data      : out std_ulogic_vector(7 downto 0);
 	o_we        : out std_ulogic;
-	i_address_r : in  std_ulogic_vector(memory_address_bits downto 0)
+	i_address_r : in  std_ulogic_vector(memory_address_bits downto 0);
+	i_ready_TOE : in std_ulogic
   );
 end rx_engine;
 
@@ -65,6 +67,7 @@ architecture rx_engine_behaviour of rx_engine is
   
   signal address_read, address_write, address_init, address_write_next, address_init_next: std_ulogic_vector(memory_address_bits downto 0); 
   signal full, full_wait, full_wait_next: std_ulogic;
+  signal data_length, data_length_next : std_ulogic_vector(15 downto 0);
   
 begin
   checksum_unit: tcp_checksum_unit port map(clk => clk, reset => reset,
@@ -74,6 +77,7 @@ begin
   full <= '1' when ((address_write(memory_address_bits) /= address_write(memory_address_bits) )and (address_write(memory_address_bits - 1 downto 0) = address_read(memory_address_bits downto 0))) else
            '0';
   
+  o_data_len <= data_length;
   address_read <= i_address_r;
   o_address <= address_write;
   
@@ -155,6 +159,7 @@ begin
 			  state_next <= read_data;
 			  address_init_next <= address_write;
 			  address_write_next <= std_ulogic_vector(unsigned(address_write) + 1);
+			  data_length_next <= (others => '0');
 		    end if;
 		  end if;
 		end if;
@@ -170,6 +175,7 @@ begin
 	      elsif(full = '1' and full_wait = '1') then --still full, deactivate the checksum
 		    checksum_en <= '0';
 			checksum_valid <= '0';
+		    tready <= '0';
 		  elsif(full = '0' and full_wait = '1') then --can receive again, but still old data present
 		    tready <= '1';
 			full_wait_next <= '0';
@@ -177,9 +183,12 @@ begin
 			checksum_valid <= '0';
 			o_data <= byte_buffer;
 			address_write_next <= std_ulogic_vector(unsigned(address_write) + 1);
+			data_length_next <= std_ulogic_vector(unsigned(data_length) + 1);
 		  else
 		    address_write_next <= std_ulogic_vector(unsigned(address_write) + 1);
+			data_length_next <= std_ulogic_vector(unsigned(data_length) + 1);
 		  end if;
+		  
 		  
 		  if (tlast = '1') then
 		    state_next <= wait_toe;
@@ -198,9 +207,9 @@ begin
 	    --check the checksum here
 		o_valid <= '1';
 		tready <= '0';
-		if(i_forwardRX = '1') then
+		if(i_forwardRX = '1' and i_ready_TOE = '1') then
 		  state_next <= await;
-		elsif(i_discard = '1') then
+		elsif(i_discard = '1' and i_ready_TOE = '1') then
 		  state_next <= await;
 		  address_write_next <= address_init;
 		end if;
@@ -215,6 +224,7 @@ begin
 	  header_count <= (others => '0');
 	  address_init <= (others => '0');
 	  address_write <= (others => '0');
+	  data_length <= (others => '0');
 	elsif (rising_edge(clk)) then
 	  byte_buffer <= byte_buffer_next;
 	  address_init <= address_init_next;
@@ -223,6 +233,7 @@ begin
 	  count <= count_next;
 	  header_count <= header_count_next;
 	  header_register <= header_register_next;
+	  data_length <= data_length_next;
 	end if;
   end process;
   
