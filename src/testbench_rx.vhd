@@ -70,3 +70,77 @@ dut: rx_engine port map(clk => clk, reset => reset, tvalid => tvalid, tlast => t
 						o_address => open, o_data => open, o_we => open, i_ready_TOE => '1', i_address_r => (others => '1'));
 environment: env port map(clk => clk, reset => reset, tvalid => tvalid, tlast => tlast, tdata => tdata, tready => '0');
 end behavioural;
+
+architecture behavioural_2 of testbench_rx is
+
+component env_rx is
+  port ( 
+    clk         : in std_ulogic;
+	reset       : in std_ulogic;
+  
+    forward_RX  : out std_ulogic;
+	discard     : out std_ulogic;
+	
+	--between network and RX
+	network_tvalid : out std_ulogic;
+	network_tlast  : out std_ulogic;
+	network_tready : in std_ulogic;
+	network_tdata  : out std_ulogic_vector(7 downto 0)
+  );
+end component;
+
+component RX is
+  -- bunch of things going here
+  generic(
+    memory_address_bits: natural := 14;
+	data_size          : natural := 16
+  );
+  -- another bunch of things here as well
+  port(
+    clk : in std_ulogic;
+	reset : in std_ulogic;
+	
+	i_forwardRX : in std_ulogic;
+	i_discard   : in std_ulogic;
+	o_header    : out t_tcp_header;
+	o_valid     : out std_ulogic;
+	i_ready_TOE : in std_ulogic;
+	o_data_len  : out std_ulogic_vector(15 downto 0);
+	--between network and RX
+	network_tvalid : in std_ulogic;
+	network_tlast  : in std_ulogic;
+	network_tready : out std_ulogic;
+	network_tdata  : in std_ulogic_vector(7 downto 0);
+	
+    --between RX and  application
+	application_tvalid         : out std_ulogic;
+	application_tlast          : out std_ulogic;
+	application_tready         : in std_ulogic;
+	application_tdata          : out std_ulogic_vector(data_size-1 downto 0)
+  );
+  
+end component;
+
+signal clk, reset: std_ulogic := '0';
+signal forward_RX, discard: std_ulogic;
+signal tvalid, tlast, tready: std_ulogic;
+signal tdata: std_ulogic_vector(7 downto 0);
+
+begin
+
+reset<='1', '0' after 50 ns;
+clk_proc: process(clk)
+begin
+    clk <= not clk after 5 ns;
+end process;
+
+dut: RX generic map(16, 8)
+     port map(clk => clk, reset => reset, 
+	          i_forwardRX => forward_RX, i_discard => discard, o_header => open, o_valid => open, i_ready_TOE => '1', o_data_len => open,
+			  network_tvalid => tvalid, network_tlast => tlast, network_tready => tready, network_tdata => tdata,
+			  application_tvalid => open, application_tlast => open, application_tready => '1', application_tdata => open
+			  );
+environment: env_rx port map(clk => clk, reset => reset,
+                             forward_RX => forward_RX, discard => discard,
+							 network_tvalid => tvalid, network_tlast => tlast, network_tready => tready, network_tdata => tdata);
+end behavioural_2;

@@ -80,8 +80,10 @@ begin
   o_data_len <= data_length;
   address_read <= i_address_r;
   o_address <= address_write;
+  o_header <= header_register;
   
-  comb: process(state, tvalid, tlast, tdata, i_forwardRX, i_discard, checksum_error, checksum_finished, address_write, address_read, address_init)
+  comb: process(state, tvalid, tlast, tdata, i_forwardRX, i_discard, checksum_error, checksum_finished, address_write, address_read, address_init, count, header_count, byte_buffer, 
+				full_wait, data_length)
   begin
     tready <= '1';
 	o_valid <= '0';
@@ -98,6 +100,17 @@ begin
 	checksum_valid <= '0';
 	checksum_last  <= tlast;
 	full_wait_next <= '0';
+	o_we <= '0';
+	
+	header_register_next <= header_register;
+	state_next <= state;
+	count_next <= count;
+	header_count_next  <= header_count;
+	byte_buffer_next   <= byte_buffer;
+	address_init_next  <= address_init;
+	address_write_next <= address_write;
+	full_wait_next     <= full_wait;
+	data_length_next   <= data_length;
 	
     case state is
 	  when await =>
@@ -158,7 +171,6 @@ begin
 		    else
 			  state_next <= read_data;
 			  address_init_next <= address_write;
-			  address_write_next <= std_ulogic_vector(unsigned(address_write) + 1);
 			  data_length_next <= (others => '0');
 		    end if;
 		  end if;
@@ -167,6 +179,7 @@ begin
 	    if(tvalid = '1') then
 		  checksum_en <= '1';
 	      checksum_valid <= '1';
+		  o_we <= '1';
 		  
 		  if(full = '1' and full_wait = '0') then --first time wait
 		    tready <= '0';
@@ -182,16 +195,18 @@ begin
 			checksum_en <= '0';
 			checksum_valid <= '0';
 			o_data <= byte_buffer;
+			o_we <= '1';
 			address_write_next <= std_ulogic_vector(unsigned(address_write) + 1);
 			data_length_next <= std_ulogic_vector(unsigned(data_length) + 1);
 		  else
+			o_we <= '1';
 		    address_write_next <= std_ulogic_vector(unsigned(address_write) + 1);
 			data_length_next <= std_ulogic_vector(unsigned(data_length) + 1);
 		  end if;
 		  
 		  
 		  if (tlast = '1') then
-		    state_next <= wait_toe;
+		    state_next <= wait_checksum;
 			tready <= '0';
 		  end if;
 		end if;
@@ -205,7 +220,6 @@ begin
 		end if;
 	  when wait_toe =>
 	    --check the checksum here
-		o_valid <= '1';
 		tready <= '0';
 		if(i_forwardRX = '1' and i_ready_TOE = '1') then
 		  state_next <= await;
@@ -225,6 +239,7 @@ begin
 	  address_init <= (others => '0');
 	  address_write <= (others => '0');
 	  data_length <= (others => '0');
+	  
 	elsif (rising_edge(clk)) then
 	  byte_buffer <= byte_buffer_next;
 	  address_init <= address_init_next;
