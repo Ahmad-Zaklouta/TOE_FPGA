@@ -18,7 +18,7 @@ package tcp_common is
 		ack_num : t_seq_num;
 		data_offset : unsigned(3 downto 0);
 		reserved : std_ulogic_vector(2 downto 0);
-		flags : std_ulogic_vector(9 downto 0);
+		flags : std_ulogic_vector(8 downto 0);
 		window_size : unsigned(15 downto 0);
 		checksum : std_ulogic_vector(15 downto 0);
 		urgent_ptr : unsigned(15 downto 0);
