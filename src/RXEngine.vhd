@@ -211,10 +211,10 @@ begin
 		  end if;
 		end if;
 	  when wait_checksum =>
-	    if(checksum_error ='0' and checksum_finished = '1') then
+	    if(checksum_error ='0' and checksum_finished = '1' and i_ready_TOE = '1') then
 		  o_valid <= '1';
 		  state_next <= wait_toe;
-		elsif(checksum_error = '1' and checksum_finished ='1') then
+		elsif(checksum_error = '1' and checksum_finished ='1' and i_ready_TOE = '1') then
 		  address_write_next <= address_init;
 		  state_next <= await;
 		end if;

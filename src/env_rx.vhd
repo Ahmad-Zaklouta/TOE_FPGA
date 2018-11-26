@@ -22,6 +22,7 @@ end env_rx;
 architecture behavioural of env_rx is
   type state_t is (start, start_tx, send_data, prefinish, finish);
   type FRAME_1 is array(0 to 73) of std_ulogic_vector(7 downto 0);
+  type FRAME_2 is array(
   signal state, state_next : state_t;
   constant frame : FRAME_1 := (X"28",
 X"4d",

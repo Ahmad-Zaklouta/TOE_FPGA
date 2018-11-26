@@ -42,13 +42,15 @@ begin
 	    if(i_end_checksum = '1' and i_valid = '1') then
           checksum_next <= checksum +  unsigned(X"000000" & i_data);
           state_next <= add_remainder;		  
-		else
+		elsif (i_valid = '1') then
 		  byte_prev_next <= unsigned(i_data);
 		  state_next <= compute2;
 		end if;
 	  when compute2 =>
-	    checksum_next <= checksum + unsigned(X"0000" & unsigned(i_data) & byte_prev);
-	    if(i_end_checksum = '1' and i_valid = '1') then
+	    if (i_valid = '1') then
+		  checksum_next <= checksum + unsigned(X"0000" & unsigned(i_data) & byte_prev);
+	    end if;
+		if(i_end_checksum = '1' and i_valid = '1') then
 		   state_next <= add_remainder;
 		else
 		   state_next <= compute1;

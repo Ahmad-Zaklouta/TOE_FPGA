@@ -21,7 +21,6 @@ entity RX is
 	i_discard   : in std_ulogic;
 	o_header    : out t_tcp_header;
 	o_valid     : out std_ulogic;
-	i_ready_TOE : in std_ulogic;
 	o_data_len  : out std_ulogic_vector(15 downto 0);
 	--between network and RX
 	network_tvalid : in std_ulogic;
@@ -97,12 +96,13 @@ architecture behavioural of RX is
   signal data : std_ulogic_vector(7 downto 0);
   signal data_length: std_ulogic_vector(15 downto 0);
   signal we : std_ulogic;
+  signal ready: std_ulogic;
 begin
   o_data_len <= data_length;
 
   rx_engine_comp: rx_engine generic map(memory_address_bits)
                   port map(clk => clk, reset => reset, i_forwardRX => i_forwardRX, i_discard => i_discard, 
-				           o_header => o_header, o_valid => o_valid, o_data_len => data_length, i_ready_TOE => i_ready_TOE,
+				           o_header => o_header, o_valid => o_valid, o_data_len => data_length, i_ready_TOE => ready,
 						   tvalid => network_tvalid, tlast => network_tlast, tready => network_tready, tdata => network_tdata,
 						   o_address => write_address, o_data => data, o_we => we, i_address_r => read_address);
 				  
@@ -110,5 +110,5 @@ begin
                   port map(clk => clk, reset => reset, i_forwardRX => i_forwardRX,
 				           tvalid => application_tvalid, tlast => application_tlast, tready => application_tready, tdata => application_tdata,
 						   o_read_address => read_address, i_data_length => data_length, i_write_address => write_address, i_data => data,
-						   i_we => we, o_ready => open);
+						   i_we => we, o_ready => ready);
 end behavioural;
