@@ -10,32 +10,32 @@ end testbench_rx;
 
 architecture behavioural of testbench_rx is
   component rx_engine is
-    generic(
+  generic(
       memory_address_bits: natural := 14
 	);
-    port(
-      clk         : in std_ulogic;
-	  reset       : in std_ulogic;
-	  
-	  -- To and from FSM
-      i_forwardRX : in std_ulogic;
-	  i_discard   : in std_ulogic;
-	  o_header    : out t_tcp_header;
-	  o_valid     : out std_ulogic;
-	  o_data_len  : out std_ulogic_vector(15 downto 0);
-	  -- AXI-4 between network interface and TOE
-	  tvalid      : in std_ulogic;
-	  tlast       : in std_ulogic;
-	  tready      : out std_ulogic;
-	  tdata       : in std_ulogic_vector(7 downto 0);
-	  -- Data to the RX buffer
-	  o_address   : out std_ulogic_vector(15 downto 0);
-	  o_data      : out std_ulogic_vector(7 downto 0);
-	  o_we        : out std_ulogic;
-	  i_address_r : in  std_ulogic_vector(memory_address_bits downto 0);
-	  i_ready_TOE : in std_ulogic
-    );
-  end component;
+  port(
+    clk         : in std_ulogic;
+	reset       : in std_ulogic;
+	
+	-- To and from FSM
+    i_forwardRX : in std_ulogic;
+	i_discard   : in std_ulogic;
+	o_header    : out t_tcp_header;
+	o_valid     : out std_ulogic;
+	o_data_len  : out std_ulogic_vector(15 downto 0);
+	-- AXI-4 between network interface and TOE
+	tvalid      : in std_ulogic;
+	tlast       : in std_ulogic;
+	tready      : out std_ulogic;
+	tdata       : in std_ulogic_vector(7 downto 0);
+	-- Data to the RX buffer
+	o_address   : out std_ulogic_vector(memory_address_bits downto 0);
+	o_data      : out std_ulogic_vector(7 downto 0);
+	o_we        : out std_ulogic;
+	i_address_r : in  std_ulogic_vector(memory_address_bits downto 0);
+	i_ready_TOE : in std_ulogic
+  );
+end component;
 
 
   
@@ -104,7 +104,6 @@ component RX is
 	i_discard   : in std_ulogic;
 	o_header    : out t_tcp_header;
 	o_valid     : out std_ulogic;
-	i_ready_TOE : in std_ulogic;
 	o_data_len  : out std_ulogic_vector(15 downto 0);
 	--between network and RX
 	network_tvalid : in std_ulogic;
@@ -136,7 +135,7 @@ end process;
 
 dut: RX generic map(16, 8)
      port map(clk => clk, reset => reset, 
-	          i_forwardRX => forward_RX, i_discard => discard, o_header => open, o_valid => open, i_ready_TOE => '1', o_data_len => open,
+	          i_forwardRX => forward_RX, i_discard => discard, o_header => open, o_valid => open, o_data_len => open,
 			  network_tvalid => tvalid, network_tlast => tlast, network_tready => tready, network_tdata => tdata,
 			  application_tvalid => open, application_tlast => open, application_tready => '1', application_tdata => open
 			  );

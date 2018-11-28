@@ -53,7 +53,7 @@ architecture rx_engine_behaviour of rx_engine is
   end component;
 
 
-  type state_t is (await, pseudo_header_read, header_read, read_data, wait_toe, wait_checksum);
+  type state_t is (await, pseudo_header_read, header_read, read_data, wait_toe, resolve_odd, send_last_pseud_header, wait_checksum);
   type header_buffer_t is array(0 to 27) of std_ulogic_vector(7 downto 0);
   
   signal header_register, header_register_next: t_tcp_header;
@@ -68,10 +68,12 @@ architecture rx_engine_behaviour of rx_engine is
   signal address_read, address_write, address_init, address_write_next, address_init_next: std_ulogic_vector(memory_address_bits downto 0); 
   signal full, full_wait, full_wait_next: std_ulogic;
   signal data_length, data_length_next : std_ulogic_vector(15 downto 0);
+  signal data_length_checksum: std_ulogic_vector(15 downto 0);
   
+  signal checksum_data: std_ulogic_vector(7 downto 0);
 begin
   checksum_unit: tcp_checksum_unit port map(clk => clk, reset => reset,
-     i_data => tdata, i_valid=>checksum_valid, i_checksum_en => checksum_en, i_end_checksum => checksum_last, o_checksum_comp_finished => checksum_finished, o_checksum => open, o_error => checksum_error);
+     i_data => checksum_data, i_valid=>checksum_valid, i_checksum_en => checksum_en, i_end_checksum => checksum_last, o_checksum_comp_finished => checksum_finished, o_checksum => open, o_error => checksum_error);
   
   
   full <= '1' when ((address_write(memory_address_bits) /= address_write(memory_address_bits) )and (address_write(memory_address_bits - 1 downto 0) = address_read(memory_address_bits downto 0))) else
@@ -81,6 +83,8 @@ begin
   address_read <= i_address_r;
   o_address <= address_write;
   o_header <= header_register;
+  data_length_checksum <= std_ulogic_vector(unsigned(data_length) + 20);
+  
   
   comb: process(state, tvalid, tlast, tdata, i_forwardRX, i_discard, checksum_error, checksum_finished, address_write, address_read, address_init, count, header_count, byte_buffer, 
 				full_wait, data_length)
@@ -98,7 +102,7 @@ begin
 	header20 <= header_buffer(27);
 	checksum_en <= '0';
 	checksum_valid <= '0';
-	checksum_last  <= tlast;
+	checksum_last  <= '0';
 	full_wait_next <= '0';
 	o_we <= '0';
 	
@@ -112,6 +116,8 @@ begin
 	full_wait_next     <= full_wait;
 	data_length_next   <= data_length;
 	
+	
+	checksum_data <= tdata;
     case state is
 	  when await =>
 	    -- await for data from AXI bus
@@ -122,6 +128,7 @@ begin
 		  state_next <= pseudo_header_read;
 		  checksum_en <= '1';
 	      checksum_valid <= '1';
+		  data_length_next <= (others => '0');
 		end if;
 	  when pseudo_header_read =>
 	    -- read the pseudo header
@@ -129,16 +136,13 @@ begin
 		  checksum_en <= '1';
 	      checksum_valid <= '1';
 		  count_next <= std_ulogic_vector(unsigned(count) + 1);
-		  if (unsigned(count) < 11) then
-		    if(unsigned(header_count) < 7) then
-		      header_buffer(to_integer(unsigned(header_count))) <= tdata;
-			  header_count_next <= std_ulogic_vector(unsigned(header_count) + 1);
-			elsif(unsigned(header_count) = 7) then
-		      header_buffer(to_integer(unsigned(header_count))) <= tdata;
-			  header_count_next <= std_ulogic_vector(unsigned(header_count) + 1);
-			end if;  
-		  else
-		    state_next <= header_read;
+		  if(unsigned(header_count) < 7) then
+		    header_buffer(to_integer(unsigned(header_count))) <= tdata;
+       	    header_count_next <= std_ulogic_vector(unsigned(header_count) + 1);
+		  elsif(unsigned(header_count) = 7) then
+		    header_buffer(to_integer(unsigned(header_count))) <= tdata;
+			header_count_next <= std_ulogic_vector(unsigned(header_count) + 1);
+			state_next <= header_read;
 		  end if;
 		end if;
 	  when header_read =>
@@ -147,7 +151,7 @@ begin
 		  checksum_en <= '1';
 	      checksum_valid <= '1';
 		  count_next <= std_ulogic_vector(unsigned(count) + 1);
-		  if (unsigned(count) < 31) then
+		  if (unsigned(count) < 27) then
 		    header_buffer(to_integer(unsigned(header_count))) <= tdata;
 		    header_count_next <= std_ulogic_vector(unsigned(header_count) + 1);
 		  else
@@ -167,7 +171,8 @@ begin
 			header_register_next.urgent_ptr  <= unsigned(header_buffer(26)) & unsigned(tdata);
 			-- create a header
 	        if(tlast = '1') then
-			  state_next <= wait_checksum;
+			  state_next <= send_last_pseud_header;
+			  count_next <= (others => '0');
 		    else
 			  state_next <= read_data;
 			  address_init_next <= address_write;
@@ -206,11 +211,39 @@ begin
 		  
 		  
 		  if (tlast = '1') then
-		    state_next <= wait_checksum;
+		    if(data_length_checksum(0) ='1') then
+	           state_next <= resolve_odd;
+			else
+		       state_next <= send_last_pseud_header;
+			end if;
+			count_next <= (others => '0');
 			tready <= '0';
 		  end if;
 		end if;
-	  when wait_checksum =>
+	when resolve_odd =>
+	   checksum_data <= X"00";
+       state_next <= send_last_pseud_header;
+	-- not my fault somebody had this stupid idea with pseudo header... YEAH I AM LOOKING AT YOU KAHN!!!
+	when send_last_pseud_header =>
+	  checksum_en <= '1';
+	  checksum_valid <= '1';
+	  
+	  
+	  if(unsigned(count) = 0) then
+	    checksum_data <= X"00";
+	    count_next <= std_ulogic_vector(unsigned(count) + 1);
+	  elsif(unsigned(count) = 1) then
+	    checksum_data <= X"06";
+	    count_next <= std_ulogic_vector(unsigned(count) + 1);
+	  elsif(unsigned(count) = 2) then
+	    checksum_data <= data_length_checksum(15 downto 8);
+		count_next <= std_ulogic_vector(unsigned(count) + 1);
+	  elsif(unsigned(count) = 3) then
+	    checksum_data <= data_length_checksum(7 downto 0);
+		state_next <= wait_checksum;
+		checksum_last <= '1';
+	  end if;
+	when wait_checksum =>
 	    if(checksum_error ='0' and checksum_finished = '1' and i_ready_TOE = '1') then
 		  o_valid <= '1';
 		  state_next <= wait_toe;

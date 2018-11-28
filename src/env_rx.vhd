@@ -21,8 +21,7 @@ end env_rx;
 
 architecture behavioural of env_rx is
   type state_t is (start, start_tx, send_data, prefinish, finish);
-  type FRAME_1 is array(0 to 73) of std_ulogic_vector(7 downto 0);
-  type FRAME_2 is array(
+  type FRAME_1 is array(0 to 69) of std_ulogic_vector(7 downto 0);
   signal state, state_next : state_t;
   constant frame : FRAME_1 := (X"28",
 X"4d",
@@ -32,10 +31,6 @@ X"0a",
 X"10",
 X"86",
 X"bd",
-X"00",
-X"06",
-X"00",
-X"3e",
 X"01",
 X"bb",
 X"cb",
@@ -126,13 +121,13 @@ begin
 		network_tvalid <= '1';
 	    i_next <= i + 1;
 		state_next <= send_data;
-		if (i = 73) then
+		if (i = 69) then
 		   network_tlast <= '1';
 		   i_next <= i;
 		   state_next <= prefinish;
 		end if;
 	  when prefinish =>
-	    forward_RX <= '1';
+	    discard <= '1';
 	    state_next <= finish;
 	  when finish =>
 	     forward_RX <= '0';

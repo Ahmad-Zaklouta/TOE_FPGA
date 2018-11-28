@@ -16,7 +16,7 @@ end env;
 
 architecture behavioural of env is
   type state_t is (start, start_tx, send_data, prefinish, finish);
-  type FRAME_1 is array(0 to 31) of std_ulogic_vector(7 downto 0);
+  type FRAME_1 is array(0 to 27) of std_ulogic_vector(7 downto 0);
   signal state, state_next : state_t;
   constant frame : FRAME_1 := (X"0a",
 X"10",
@@ -25,10 +25,6 @@ X"0c",
 X"34",
 X"6d",
 X"78",
-X"14",
-X"00",
-X"06",
-X"00",
 X"14",
 X"ef",
 X"7d",
@@ -79,7 +75,7 @@ begin
 		i_next <= i + 1;
 		state_next <= send_data;
 	    tvalid <= '1';
-		if (i = 31) then
+		if (i = 27) then
 		   i_next <= 0;
 		   tlast <= '1';
 		   state_next <= prefinish;
