@@ -2,11 +2,10 @@
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
-
 use work.tcp_common.all;
 
 entity toefsm is
-
+   
    port(
       --------------------------------------------------------------------------------
       -- Inputs from Application
@@ -30,7 +29,7 @@ entity toefsm is
       --------------------------------------------------------------------------------    ----IF PACKET CORRECT BUT NOT DATA LIKE SYN OR ACK ,SENT FORWARD HIGH TO RX
       i_header       :  in t_tcp_header;
       i_valid        :  in std_ulogic;
-      i_data_sizeRx  :  in unsigned(31 downto 0);
+      i_data_sizeRx  :  in unsigned(15 downto 0);
       
       --------------------------------------------------------------------------------
       -- Outputs for Rx engine
@@ -41,20 +40,23 @@ entity toefsm is
       --------------------------------------------------------------------------------
       -- Inputs from Tx engine
       --------------------------------------------------------------------------------
-
       i_data_inbuffer :  in std_ulogic;
-      i_data_sizeApp  :  in unsigned(31 downto 0);
-      i_readytoSend  :  in  std_ulogic; -- send data
+      i_data_sizeApp  :  in unsigned(15 downto 0);
+      --i_readytoSend  :  in  std_ulogic; -- send data
+      
+      --------------------------------------------------------------------------------
+      -- AXI interface
+      --------------------------------------------------------------------------------
+      last  :  in  std_ulogic;
       --------------------------------------------------------------------------------
       -- Outputs for Tx engine
       --------------------------------------------------------------------------------
-      o_Txsenddata : out std_ulogic; -- to say to the Tx when doing the handshake not to send data that may be stored in the buffer
+      --o_Txsenddata : out std_ulogic; -- to say to the Tx when doing the handshake not to send data that may be stored in the buffer
       o_header    :  out t_tcp_header;
       o_forwardTX :  out std_ulogic
  
     );
 end toefsm;
-
 
 --------------------------------------------------------------------------------
 -- The desription of the accelerator.
@@ -88,11 +90,13 @@ signal   r_open, r_next_open : std_ulogic;
 signal   r_forwardRX, r_next_forwardRX : std_ulogic;
 signal   r_forwardTX, r_next_forwardTX : std_ulogic;
 signal   r_discard, r_next_discard : std_ulogic;
+signal   r_readytoSend,  r_next_readytoSend   : std_ulogic;
+signal   sel  :std_ulogic := '0';
 
-
--- mux me next_reg
 
 begin  
+   -- mux 
+   o_established <= '1' WHEN sel = '1' ELSE '0'; 
    o_header <= r_header;   
    o_forwardRX <= r_forwardRX;
    o_forwardTX <= r_forwardTX;
@@ -101,18 +105,16 @@ begin
    
    
    comb_logic: process(r_header, r_headerApp_seq_num, i_header, state, i_open, i_src_ip, i_dst_ip, i_src_port, i_dst_port,
-                       i_data_sizeApp, i_data_sizeRx, i_valid, i_timeout, i_active_mode, r_acktimerApp, r_timeout, i_readytoSend, start
-                       , r_previous_ack_num, r_otherprevious_ack_num, r_forwardRX, r_forwardTX, r_discard)     
+                       i_data_sizeApp, i_data_sizeRx, i_valid, i_timeout, i_active_mode, r_acktimerApp, r_timeout, start
+                       , r_previous_ack_num, r_otherprevious_ack_num, r_forwardRX, r_forwardTX, r_discard )     
    begin
       r_next_header <= r_header;      
       r_next_otherprevious_ack_num <= r_otherprevious_ack_num;
       r_next_headerApp_seq_num <= r_headerApp_seq_num; 
-      r_next_previous_ack_num <= r_previous_ack_num;      
+      r_next_previous_ack_num <= r_previous_ack_num;        
       r_next_forwardRX <= '0';
       r_next_forwardTX <= '0';
-      r_next_discard <= '0';
-      
-      o_established <= '0';
+      r_next_discard <= '0';    
       r_next_acktimerApp <= r_acktimerApp;
       r_next_timeout <= r_timeout;
       case state is
@@ -140,13 +142,12 @@ begin
                r_next_header.src_port <= i_src_port; -- fed by App
                next_state <=  LISTEN;
             else
-            next_state <= CLOSED; 
+            next_state <= CLOSED;
             end if;
             
          when LISTEN =>
             ------------------------
             -- PASSIVE OPEN
-
             -----------------------            
             if i_open = '0'  then   -- appl_close = '1'
                next_state <= CLOSED; 
@@ -178,13 +179,13 @@ begin
             r_next_acktimerApp <= r_acktimerApp + 1;
             r_next_timeout <= r_timeout +1;
             
-            if i_open = '0' or r_timeout = CONNECTION_TIMEOUT then  --  if appl_close or timeout
+            if i_open = '0' or r_timeout = i_timeout then  --  if appl_close or timeout
                next_state <= CLOSED;
             elsif r_acktimerApp = ACK_TIMEOUT then -- if no ack received send again the SYN              
                --  SENT SYN AGAIN               
                r_next_forwardTX <= '1';
                r_next_acktimerApp <= (others => '0');
-               next_state <= SYN_SENT;
+               next_state <= SYN_SENT;               
                ------------------------
                -- At this point ,i cannot receive out of order data 
                -----------------------
@@ -201,10 +202,10 @@ begin
                      r_next_timeout   <= (others => '0'); --reset timeout
                      r_next_acktimerApp <= (others => '0'); --reset acktimer
                      next_state <= ESTABLISHED;
+                     sel <= '1'; --for o_established
                      r_next_forwardRX <= '1'; -- for karol
                   else
                      r_next_discard <= '1';
-
                      next_state <= SYN_SENT;
                   
                   end if;
@@ -220,7 +221,7 @@ begin
             r_next_acktimerApp <= r_acktimerApp +1;
             r_next_timeout <= r_timeout +1;
             -- ADD CASE WHEN OUR APP WANTS TO CLOSE
-            if r_timeout = CONNECTION_TIMEOUT  then
+            if r_timeout = i_timeout  then
                r_next_discard <= '1'; -- to prevent conflict if i receive a segment here
                r_next_timeout <= (others => '0');
                next_state <= LISTEN;               
@@ -240,7 +241,8 @@ begin
                   -- only here i know his next seq number MUST BE +1                  
                   r_next_header.seq_num <= i_header.ack_num; --update     
                   r_next_headerApp_seq_num <= i_header.ack_num;  --update
-                  next_state <= ESTABLISHED;                      
+                  next_state <= ESTABLISHED;  
+                  sel <= '1'; --for o_established
                   r_next_acktimerApp <= (others => '0');
                   r_next_timeout <= (others => '0');                  
                   r_next_forwardRX <= '1'; -- for karol
@@ -284,7 +286,7 @@ begin
                   r_next_forwardTX <= '1';
                   next_state <= CLOSE_WAIT;
                end if;
-            elsif r_timeout = CONNECTION_TIMEOUT then
+            elsif r_timeout = i_timeout then
                next_state <= CLOSED;             
             elsif r_acktimerApp = ACK_TIMEOUT then            
               
@@ -298,7 +300,7 @@ begin
             ------------------------
             -- YOU RECEIVE A PACKET BUT DONT WANT TO SEND DATA FROM YOUR SIDE AT THE SAME TIME
             -----------------------   
-            elsif i_valid = '1' and i_readytoSend = '0'  then                 
+            elsif i_valid = '1' and r_readytoSend = '0'  then                 
                if r_header.dst_ip = i_header.src_ip and r_header.dst_port = i_header.src_port and  
                   r_header.src_port = i_header.dst_port and r_header.src_ip = i_header.dst_ip then 
 
@@ -360,7 +362,7 @@ begin
                      r_next_header.seq_num <= r_header.seq_num;  -- when y send ack you dont increase this field                     
                      r_next_header.flags <= '0'& x"10"; --SEND ACK  
                      r_next_timeout <= (others => '0');
-                     o_established <= '1';  -- INFROM APP TO CLOSE
+                     sel <= '0'; --for o_established  -- INFROM APP TO CLOSE
                      r_next_forwardRX <= '1'; -- for karol
                     -- o_close <= '1';
                      if i_data_sizeRx /='0' & x"0000" then                                         
@@ -400,10 +402,9 @@ begin
 
 
                
-            elsif i_valid = '1' and i_readytoSend = '1'  then ---!!!!GO TO ONLY THIS AAAADDED
+            elsif i_valid = '1' and r_readytoSend = '1'  then ---!!!!GO TO ONLY THIS AAAADDED
                if r_header.dst_ip = i_header.src_ip and r_header.dst_port = i_header.src_port and  
-                  r_header.src_port = i_header.dst_port and r_header.src_ip = i_header.dst_ip  then                  
-               
+                  r_header.src_port = i_header.dst_port and r_header.src_ip = i_header.dst_ip  then  
                   r_next_forwardTX <= '1';
                   w_waitforack <= '1';
                   r_next_headerApp_seq_num <= r_header.seq_num + i_data_sizeApp; ---!!!!ONLY THIS AAAADDED
@@ -456,7 +457,7 @@ begin
                      r_next_header.seq_num <= r_header.seq_num;  -- when y send ack you dont increase this field
                      r_next_header.flags <= '0'& x"10"; --SEND ACK  
                      r_next_timeout <= (others => '0');
-                     o_established <= '1';  -- INFROM APP TO CLOSE
+                     sel <= '0'; --for o_established  -- INFROM APP TO CLOSE
                      --o_close <= '1';
                      r_next_forwardRX <= '1'; -- for karol
                      if i_data_sizeRx /='0' & x"0000" then                                         
@@ -501,7 +502,7 @@ begin
             -- OUR APP IS SENDING DATA  
             -- AND Previous packet has been acked
             -----------------------            
-            elsif i_readytoSend = '1' and r_headerApp_seq_num = i_header.ack_num then                   
+            elsif r_readytoSend = '1' and r_headerApp_seq_num = i_header.ack_num then              
                r_next_headerApp_seq_num <= r_header.seq_num + i_data_sizeApp;           
                r_next_forwardTX <= '1';
                w_waitforack <= '1';
@@ -517,7 +518,7 @@ begin
             r_next_acktimerApp <= r_acktimerApp + 1;
             r_next_timeout <= r_timeout +1;
             
-            if r_timeout = CONNECTION_TIMEOUT then  --  if appl_close or timeout
+            if r_timeout = i_timeout then  --  if appl_close or timeout
                next_state <= CLOSED;
             elsif r_acktimerApp = ACK_TIMEOUT then -- if no ack received send again the SYN               
                --  SENT FIN AGAIN               
@@ -559,7 +560,7 @@ begin
          when FIN_WAIT_2 =>             
             r_next_timeout <= r_timeout +1;
             
-            if r_timeout = CONNECTION_TIMEOUT then  --  if appl_close or timeout
+            if r_timeout = i_timeout then  --  if appl_close or timeout
                next_state <= CLOSED;            
             elsif i_valid = '1' and r_header.dst_ip = i_header.src_ip and r_header.dst_port = i_header.src_port 
                and  r_header.dst_ip = i_header.src_ip and r_header.dst_port = i_header.src_port 
@@ -583,7 +584,7 @@ begin
             r_next_acktimerApp <= r_acktimerApp + 1;
             r_next_timeout <= r_timeout +1;
             
-            if r_timeout = CONNECTION_TIMEOUT then  --  if appl timeouts
+            if r_timeout = i_timeout then  --  if appl timeouts
                next_state <= CLOSED;
             elsif r_acktimerApp = ACK_TIMEOUT then -- if no ack received send again the ACK               
                --  SENT ACK AGAIN               
@@ -603,7 +604,7 @@ begin
          
          when TIME_WAIT =>
             r_next_timeout <= r_timeout +1;
-            if r_timeout = 2*CONNECTION_TIMEOUT then  --  2MSL? CHECK RFC
+            if r_timeout = 2*i_timeout then  --  2MSL? CHECK RFC
                r_next_timeout <= (others => '0');                
                next_state <= CLOSED;
             else
@@ -625,7 +626,7 @@ begin
             r_next_acktimerApp <= r_acktimerApp +1;
             r_next_timeout <= r_timeout +1;
             
-            if r_timeout = CONNECTION_TIMEOUT  then
+            if r_timeout = i_timeout  then
                r_next_timeout <= (others => '0');
                next_state <=CLOSED;
                
@@ -646,14 +647,22 @@ begin
             end if;   
          when others =>
             next_state <= CLOSED;
-
          
       end case;
    end process comb_logic;
   
   
-  
-
+   ----------------------
+   --SEGMENTATION
+   ----------------------- 
+   buffer_ready : process(i_data_sizeApp,last)
+         begin
+            if i_data_sizeApp = to_unsigned(1500, i_data_sizeApp'length) or last = '1'   then
+               r_next_readytoSend <= '1';   
+            else
+               r_next_readytoSend <= '0';
+            end if;   
+      end process buffer_ready;
 
 
 
@@ -688,6 +697,7 @@ begin
                r_forwardRX          <= '0';
                r_forwardTX          <= '0';
                r_discard            <= '0';
+               r_readytoSend        <= '0';
             else
                r_otherprevious_ack_num <= r_next_otherprevious_ack_num;
                r_header              <= r_next_header;
@@ -700,6 +710,7 @@ begin
                r_forwardRX           <= r_next_forwardRX;
                r_forwardTX           <= r_next_forwardTX;
                r_discard             <= r_next_discard;
+               r_readytoSend         <= r_next_readytoSend;
             end if;
          end if;
       end process clk_logic;
@@ -710,11 +721,4 @@ end rtl;
 
 
 
-   -- buffer_ready : process(i_data_sizeApp,last)
-      -- begin
-         -- if i_data_sizeApp = to_unsigned(1500, i_data_sizeApp'length) or last = 1   then
-            -- o_readytoSend <= '1';   
-         -- else
-            -- o_readytoSend = '0';
-         -- end if;   
-   -- end process buffer_ready
+   
