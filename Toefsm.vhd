@@ -14,11 +14,10 @@ entity toefsm is
       clk            :  in  std_ulogic;
       reset          :  in  std_ulogic;
       start          :  in  std_ulogic;
-      i_active_mode  :  in  std_ulogic;
-      last           :  in  std_ulogic; -- send data
+      i_active_mode  :  in  std_ulogic;      
       i_open         :  in  std_ulogic;     -- shall i save this to registers?
       i_timeout      :  in  unsigned (10 downto 0);
-      o_close        :  out  std_ulogic;
+      o_established  :  out  std_ulogic;
       --------------------------------------------------------------------------------
       -- SRC IP,PORT / DST IP,PORT defined by App 
       --------------------------------------------------------------------------------
@@ -44,6 +43,7 @@ entity toefsm is
       --------------------------------------------------------------------------------
       i_data_inbuffer :  in std_ulogic;
       i_data_sizeApp  :  in unsigned(31 downto 0);
+      i_readytoSend  :  in  std_ulogic; -- send data
       --------------------------------------------------------------------------------
       -- Outputs for Tx engine
       --------------------------------------------------------------------------------
@@ -60,7 +60,7 @@ end toefsm;
 
 architecture rtl of toefsm is
 
-constant ACK_TIMEOUT : integer := 7;
+constant ACK_TIMEOUT : integer := 20;
 constant CONNECTION_TIMEOUT : integer := 40;
 type state_type is ( CLOSED, LISTEN, SYN_SENT, SYN_RCVD, ESTABLISHED, FIN_WAIT_1, FIN_WAIT_2,
                      CLOSE_WAIT, LAST_ACK, CLOSING, TIME_WAIT);
@@ -101,7 +101,7 @@ begin
    
    
    comb_logic: process(r_header, r_headerApp_seq_num, i_header, state, i_open, i_src_ip, i_dst_ip, i_src_port, i_dst_port,
-                       i_data_sizeApp, i_data_sizeRx, i_valid, i_timeout, i_active_mode, r_acktimerApp, r_timeout, last, start
+                       i_data_sizeApp, i_data_sizeRx, i_valid, i_timeout, i_active_mode, r_acktimerApp, r_timeout, i_readytoSend, start
                        , r_previous_ack_num, r_otherprevious_ack_num, r_forwardRX, r_forwardTX, r_discard)     
    begin
       r_next_header <= r_header;      
@@ -112,7 +112,7 @@ begin
       r_next_forwardTX <= '0';
       r_next_discard <= '0';
       
-      o_close <= '0';
+      o_established <= '0';
       r_next_acktimerApp <= r_acktimerApp;
       r_next_timeout <= r_timeout;
       case state is
@@ -296,7 +296,7 @@ begin
             ------------------------
             -- YOU RECEIVE A PACKET BUT DONT WANT TO SEND DATA FROM YOUR SIDE AT THE SAME TIME
             -----------------------   
-            elsif i_valid = '1' and last = '0'  then                 
+            elsif i_valid = '1' and i_readytoSend = '0'  then                 
                if r_header.dst_ip = i_header.src_ip and r_header.dst_port = i_header.src_port and  
                   r_header.src_port = i_header.dst_port and r_header.src_ip = i_header.dst_ip then 
 
@@ -358,7 +358,7 @@ begin
                      r_next_header.seq_num <= r_header.seq_num;  -- when y send ack you dont increase this field                     
                      r_next_header.flags <= '0'& x"10"; --SEND ACK  
                      r_next_timeout <= (others => '0');
-                     o_close <= '1';  -- INFROM APP TO CLOSE
+                     o_established <= '1';  -- INFROM APP TO CLOSE
                      r_next_forwardRX <= '1'; -- for karol
                     -- o_close <= '1';
                      if i_data_sizeRx /='0' & x"0000" then                                         
@@ -398,7 +398,7 @@ begin
 
 
                
-            elsif i_valid = '1' and last = '1'  then ---!!!!GO TO ONLY THIS AAAADDED
+            elsif i_valid = '1' and i_readytoSend = '1'  then ---!!!!GO TO ONLY THIS AAAADDED
                if r_header.dst_ip = i_header.src_ip and r_header.dst_port = i_header.src_port and  
                   r_header.src_port = i_header.dst_port and r_header.src_ip = i_header.dst_ip  then                  
                
@@ -454,7 +454,7 @@ begin
                      r_next_header.seq_num <= r_header.seq_num;  -- when y send ack you dont increase this field
                      r_next_header.flags <= '0'& x"10"; --SEND ACK  
                      r_next_timeout <= (others => '0');
-                     o_close <= '1';  -- INFROM APP TO CLOSE
+                     o_established <= '1';  -- INFROM APP TO CLOSE
                      --o_close <= '1';
                      r_next_forwardRX <= '1'; -- for karol
                      if i_data_sizeRx /='0' & x"0000" then                                         
@@ -499,7 +499,7 @@ begin
             -- OUR APP IS SENDING DATA  
             -- AND Previous packet has been acked
             -----------------------            
-            elsif last = '1' and r_headerApp_seq_num = i_header.ack_num then                   
+            elsif i_readytoSend = '1' and r_headerApp_seq_num = i_header.ack_num then                   
                r_next_headerApp_seq_num <= r_header.seq_num + i_data_sizeApp;           
                r_next_forwardTX <= '1';
                w_waitforack <= '1';
@@ -703,3 +703,15 @@ begin
 
 
 end rtl;
+
+
+
+
+   -- buffer_ready : process(i_data_sizeApp,last)
+      -- begin
+         -- if i_data_sizeApp = to_unsigned(1500, i_data_sizeApp'length) or last = 1   then
+            -- o_readytoSend <= '1';   
+         -- else
+            -- o_readytoSend = '0';
+         -- end if;   
+   -- end process buffer_ready
