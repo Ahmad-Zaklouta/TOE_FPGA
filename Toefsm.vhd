@@ -6,7 +6,7 @@ use IEEE.numeric_std.all;
 use work.tcp_common.all;
 
 entity toefsm is
-   
+
    port(
       --------------------------------------------------------------------------------
       -- Inputs from Application
@@ -41,6 +41,7 @@ entity toefsm is
       --------------------------------------------------------------------------------
       -- Inputs from Tx engine
       --------------------------------------------------------------------------------
+
       i_data_inbuffer :  in std_ulogic;
       i_data_sizeApp  :  in unsigned(31 downto 0);
       i_readytoSend  :  in  std_ulogic; -- send data
@@ -53,6 +54,7 @@ entity toefsm is
  
     );
 end toefsm;
+
 
 --------------------------------------------------------------------------------
 -- The desription of the accelerator.
@@ -88,11 +90,9 @@ signal   r_forwardTX, r_next_forwardTX : std_ulogic;
 signal   r_discard, r_next_discard : std_ulogic;
 
 
-
 -- mux me next_reg
 
 begin  
-  
    o_header <= r_header;   
    o_forwardRX <= r_forwardRX;
    o_forwardTX <= r_forwardTX;
@@ -140,12 +140,13 @@ begin
                r_next_header.src_port <= i_src_port; -- fed by App
                next_state <=  LISTEN;
             else
-            next_state <= CLOSED;
+            next_state <= CLOSED; 
             end if;
             
          when LISTEN =>
             ------------------------
             -- PASSIVE OPEN
+
             -----------------------            
             if i_open = '0'  then   -- appl_close = '1'
                next_state <= CLOSED; 
@@ -203,6 +204,7 @@ begin
                      r_next_forwardRX <= '1'; -- for karol
                   else
                      r_next_discard <= '1';
+
                      next_state <= SYN_SENT;
                   
                   end if;
@@ -644,6 +646,7 @@ begin
             end if;   
          when others =>
             next_state <= CLOSED;
+
          
       end case;
    end process comb_logic;
