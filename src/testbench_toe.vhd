@@ -68,6 +68,11 @@ component application is
 	   
 end component;
 
+component top is
+  port(
+  
+  );
+end component;
 
 signal clk, reset: std_ulogic := '0';
 
