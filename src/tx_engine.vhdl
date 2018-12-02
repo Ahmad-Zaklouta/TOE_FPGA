@@ -11,14 +11,7 @@ use work.gray_code.all;
 
 
 
-entity tx_buffer is
-	generic (
-		--Transfer one byte at a time through the busses.
-		DATA_WIDTH : natural := 8;
-		MTU : natural := 1024;
-		APP_BUF_WIDTH : natural := 16;
-		NET_BUF_WIDTH : natural := 12
-	);
+entity tx_engine is
 	port (
 		--Clocked on rising edge
 		clock : in std_ulogic;
@@ -55,9 +48,9 @@ entity tx_buffer is
 		--Outputs high only when the TX engine is free to send another packet.
 		o_ctrl_ready : out std_ulogic
 	);
-end tx_buffer;
+end tx_engine;
 
-architecture behaviour of tx_buffer is
+architecture behaviour of tx_engine is
 	component dual_port_ram
 	generic (
 		DATA_WIDTH    : natural;
@@ -85,7 +78,7 @@ architecture behaviour of tx_buffer is
 	signal app_buf_read_data : t_byte;
 
 
-	signal net_buf_read_ptr : unsigned(APP_BUF_WIDTH downto 0);
+	signal net_buf_read_ptr : unsigned(NET_BUF_WIDTH downto 0);
 	signal net_buf_write_enable : std_ulogic;
 	signal net_buf_write_possible : std_ulogic;
 	signal net_buf_read_possible : std_ulogic;
@@ -96,8 +89,8 @@ architecture behaviour of tx_buffer is
 	type t_registers is record
 		app_buf_read_ptr : unsigned(APP_BUF_WIDTH downto 0);
 
-		net_buf_write_ptr : unsigned(APP_BUF_WIDTH downto 0);
-		net_buf_valid_ptr : unsigned(APP_BUF_WIDTH downto 0);
+		net_buf_write_ptr : unsigned(NET_BUF_WIDTH downto 0);
+		net_buf_valid_ptr : unsigned(NET_BUF_WIDTH downto 0);
 
 		tx_state : integer range 0 to 10;
 		tx_header_byte : integer range 0 to 63;
@@ -110,7 +103,7 @@ architecture behaviour of tx_buffer is
 	signal nxt : t_registers;
 
 begin
-	app_buf : dual_port_ram generic map (DATA_WIDTH, APP_BUF_WIDTH)
+	app_buf : dual_port_ram generic map (DATA_WIDTH => DATA_WIDTH, ADDRESS_WIDTH => APP_BUF_WIDTH)
 	port map(
 		a_clock => clock,
 		a_address => std_ulogic_vector(app_buf_write_ptr(APP_BUF_WIDTH - 1 downto 0)),
@@ -125,7 +118,7 @@ begin
 		b_write_enable => '0'
 	);
 
-	net_buf : dual_port_ram generic map (DATA_WIDTH, NET_BUF_WIDTH)
+	net_buf : dual_port_ram generic map (DATA_WIDTH => DATA_WIDTH, ADDRESS_WIDTH => NET_BUF_WIDTH)
 	port map(
 		a_clock => clock,
 		a_address => std_ulogic_vector(nxt.net_buf_write_ptr(NET_BUF_WIDTH - 1 downto 0)),
@@ -161,10 +154,10 @@ begin
 
 		case reg.tx_state is
 			when 0 => --waiting
-				if i_ctrl_tx_start <= '1' then
+				if i_ctrl_tx_start = '1' then
 					nxt.tx_packet_header <= i_ctrl_packet_header;
 					nxt.tx_packet_header.checksum <=
-						std_ulogic_vector(i_ctrl_packet_data_length) xor
+						(15 downto i_ctrl_packet_data_length'length => '0') & std_ulogic_vector(i_ctrl_packet_data_length) xor
 						i_ctrl_packet_header.src_ip(31 downto 16) xor
 						i_ctrl_packet_header.src_ip(15 downto 0) xor
 						i_ctrl_packet_header.dst_ip(31 downto 16) xor
@@ -181,36 +174,61 @@ begin
 					nxt.tx_packet_data_length <= to_integer(i_ctrl_packet_data_length);
 					nxt.tx_header_byte <= 0;
 					nxt.tx_data_byte <= 0;
-					nxt.tx_state <= 1;
+					nxt.tx_state <= reg.tx_state + 1;
 				end if;
-			when 1 =>
+			when 1 => --output MSB data length
+				if net_buf_write_possible = '1' then
+					net_buf_write_data <= std_ulogic_vector(to_unsigned((reg.tx_packet_data_length + 28) / 256, 8));
+					net_buf_write_enable <= '1';
+					nxt.tx_state <= reg.tx_state + 1;
+				end if;
+			when 2 => --output LSB data length
+				if net_buf_write_possible = '1' then
+					net_buf_write_data <= std_ulogic_vector(to_unsigned(reg.tx_packet_data_length + 28, 8));
+					net_buf_write_enable <= '1';
+					nxt.tx_state <= reg.tx_state + 1;
+				end if;
+			when 3 => --output header
 				if net_buf_write_possible = '1' then
 					net_buf_write_data <= tcp_header_get_byte(reg.tx_packet_header, reg.tx_header_byte);
 					nxt.net_buf_write_ptr <= reg.net_buf_write_ptr + 1;
 					net_buf_write_enable <= '1';
 					nxt.tx_header_byte <= reg.tx_header_byte + 1;
 					if reg.tx_header_byte = 27 then
-						nxt.tx_state <= nxt.tx_state + 1;
+						nxt.tx_state <= reg.tx_state + 1;
 						nxt.app_buf_read_ptr <= app_buf_free_ptr;
 					end if;
 				end if;
-			when 2 =>
-				if net_buf_write_possible = '1' then
+			when 4 => --output data
+				if net_buf_write_possible = '1' and app_buf_read_possible = '1' then
 					net_buf_write_data <= app_buf_read_data;
 					if (reg.tx_data_byte mod 2) = 0 then
 						nxt.tx_packet_header.checksum(15 downto 8) <= reg.tx_packet_header.checksum(15 downto 8) xor app_buf_read_data;
 					else
 						nxt.tx_packet_header.checksum(7 downto 0) <= reg.tx_packet_header.checksum(7 downto 0) xor app_buf_read_data;
 					end if;
+					nxt.app_buf_read_ptr <= reg.app_buf_read_ptr + 1;
 					nxt.net_buf_write_ptr <= reg.net_buf_write_ptr + 1;
 					net_buf_write_enable <= '1';
-					nxt.tx_data_byte <= reg.tx_header_byte + 1;
-					if reg.tx_data_byte = nxt.tx_packet_data_length then
-						nxt.tx_state <= nxt.tx_state + 1;
+					nxt.tx_data_byte <= reg.tx_data_byte + 1;
+					if reg.tx_data_byte = reg.tx_packet_data_length then
+						nxt.tx_state <= reg.tx_state + 1;
+						nxt.net_buf_write_ptr <= reg.net_buf_valid_ptr + 26;
 					end if;
 				end if;
-			when 3 =>
-				nxt.net_buf_valid_ptr <= reg.net_buf_write_ptr;
+			when 5 =>
+				net_buf_write_data <= reg.tx_packet_header.checksum(15 downto 8);
+				net_buf_write_enable <= '1';
+				nxt.net_buf_write_ptr <= reg.net_buf_write_ptr + 1;
+				nxt.tx_state <= reg.tx_state + 1;
+			when 6 =>
+				net_buf_write_data <= reg.tx_packet_header.checksum(15 downto 8);
+				net_buf_write_enable <= '1';
+				nxt.net_buf_write_ptr <= reg.net_buf_write_ptr + 1;
+				nxt.tx_state <= reg.tx_state + 1;
+			when 7 => --final state
+				nxt.net_buf_valid_ptr <= to_unsigned(28 + reg.tx_packet_data_length, NET_BUF_WIDTH + 1);
+				nxt.net_buf_write_ptr <= to_unsigned(28 + reg.tx_packet_data_length, NET_BUF_WIDTH + 1);
 				nxt.tx_state <= 0;
 			when others =>
 				assert false;

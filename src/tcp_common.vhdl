@@ -31,10 +31,10 @@ package tcp_common is
 	) return t_byte;
 
 	function ipv4_address (
-		b0 : integer range 0 to 255;
-		b1 : integer range 0 to 255;
+		b3 : integer range 0 to 255;
 		b2 : integer range 0 to 255;
-		b3 : integer range 0 to 255
+		b1 : integer range 0 to 255;
+		b0 : integer range 0 to 255
 	) return t_ipv4_address;
 
 	function tcp_port (
@@ -56,15 +56,18 @@ package tcp_common is
 		checksum => (others => '0'),
 		urgent_ptr => (others => '0')
 	);
+	constant DATA_WIDTH : natural := 8;
+	constant APP_BUF_WIDTH : natural := 8;
+	constant NET_BUF_WIDTH : natural := 12;
 
 end package tcp_common;
 
 package body tcp_common is
 	function ipv4_address (
-		b0 : integer range 0 to 255;
-		b1 : integer range 0 to 255;
+		b3 : integer range 0 to 255;
 		b2 : integer range 0 to 255;
-		b3 : integer range 0 to 255
+		b1 : integer range 0 to 255;
+		b0 : integer range 0 to 255
 	) return t_ipv4_address is
 		variable addr : std_ulogic_vector(31 downto 0) := (others => '0');
 	begin
@@ -119,10 +122,10 @@ package body tcp_common is
 			when 22 => ret := std_ulogic_vector(header.window_size(15 downto 8));
 			when 23 => ret := std_ulogic_vector(header.window_size( 7 downto 0));
 
-			when 24 => ret := header.checksum(15 downto 8);
-			when 25 => ret := header.checksum( 7 downto 0);
-			when 26 => ret := std_ulogic_vector(header.window_size(15 downto 8));
-			when 27 => ret := std_ulogic_vector(header.window_size( 7 downto 0));
+			when 24 => ret := X"55";--header.checksum(15 downto 8);
+			when 25 => ret := X"AA";--header.checksum( 7 downto 0);
+			when 26 => ret := std_ulogic_vector(header.urgent_ptr(15 downto 8));
+			when 27 => ret := std_ulogic_vector(header.urgent_ptr( 7 downto 0));
 		end case;
 		return ret;
 	end function;
