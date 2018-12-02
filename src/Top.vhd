@@ -8,17 +8,19 @@ use work.tcp_common.all;
 
 entity Top is
   port(
+    clk            :  in  std_ulogic;
+    reset          :  in  std_ulogic;
+
+	
     --------------------------------------------------------------------------------
     -- Inputs from Application
     --------------------------------------------------------------------------------
-    clk            :  in  std_ulogic;
-    reset          :  in  std_ulogic;
     start          :  in  std_ulogic;
     i_active_mode  :  in  std_ulogic;
-    last           :  in  std_ulogic; -- send data
+    last	       :  in  std_ulogic; -- send data
     i_open         :  in  std_ulogic;     -- shall i save this to registers?
     i_timeout      :  in  unsigned (10 downto 0);
-    o_close        :  out  std_ulogic;
+    o_established        :  out  std_ulogic;
     --------------------------------------------------------------------------------
     -- SRC IP,PORT / DST IP,PORT defined by App 
     --------------------------------------------------------------------------------
@@ -39,14 +41,28 @@ entity Top is
 	rx_application_tvalid         : out std_ulogic;
 	rx_application_tlast          : out std_ulogic;
 	rx_application_tready         : in std_ulogic;
-	rx_application_tdata          : out std_ulogic_vector(data_size-1 downto 0)
+	rx_application_tdata          : out std_ulogic_vector(data_size-1 downto 0);
+	--------------------------------------------------------------------------------
+    --between TX and  network
+	--------------------------------------------------------------------------------
+	tx_network_tvalid : in std_ulogic;
+	tx_network_tlast  : in std_ulogic;
+	tx_network_tready : out std_ulogic;
+	tx_network_tdata  : in std_ulogic_vector(7 downto 0);
+	--------------------------------------------------------------------------------
+    --between TX and  application
+	--------------------------------------------------------------------------------
+	tx_application_tvalid         : out std_ulogic;
+	tx_application_tlast          : out std_ulogic;
+	tx_application_tready         : in std_ulogic;
+	tx_application_tdata          : out std_ulogic_vector(data_size-1 downto 0)
   );
 end Top;
 
 architecture structural of Top is
 
-component toefsm is
-
+entity toefsm is
+   
    port(
       --------------------------------------------------------------------------------
       -- Inputs from Application
@@ -54,11 +70,10 @@ component toefsm is
       clk            :  in  std_ulogic;
       reset          :  in  std_ulogic;
       start          :  in  std_ulogic;
-      i_active_mode  :  in  std_ulogic;
-      last           :  in  std_ulogic; -- send data
+      i_active_mode  :  in  std_ulogic;      
       i_open         :  in  std_ulogic;     -- shall i save this to registers?
       i_timeout      :  in  unsigned (10 downto 0);
-      o_close        :  out  std_ulogic;
+      o_established  :  out  std_ulogic;
       --------------------------------------------------------------------------------
       -- SRC IP,PORT / DST IP,PORT defined by App 
       --------------------------------------------------------------------------------
@@ -71,7 +86,7 @@ component toefsm is
       --------------------------------------------------------------------------------    ----IF PACKET CORRECT BUT NOT DATA LIKE SYN OR ACK ,SENT FORWARD HIGH TO RX
       i_header       :  in t_tcp_header;
       i_valid        :  in std_ulogic;
-      i_data_sizeRx  :  in unsigned(31 downto 0);
+      i_data_sizeRx  :  in unsigned(15 downto 0);
       
       --------------------------------------------------------------------------------
       -- Outputs for Rx engine
@@ -82,20 +97,25 @@ component toefsm is
       --------------------------------------------------------------------------------
       -- Inputs from Tx engine
       --------------------------------------------------------------------------------
-
       i_data_inbuffer :  in std_ulogic;
-      i_data_sizeApp  :  in unsigned(31 downto 0);
+      i_data_sizeApp  :  in unsigned(15 downto 0);
+      --i_readytoSend  :  in  std_ulogic; -- send data
+      
+      --------------------------------------------------------------------------------
+      -- AXI interface
+      --------------------------------------------------------------------------------
+      last  :  in  std_ulogic;
       --------------------------------------------------------------------------------
       -- Outputs for Tx engine
       --------------------------------------------------------------------------------
-      o_Txsenddata : out std_ulogic; -- to say to the Tx when doing the handshake not to send data that may be stored in the buffer
+      --o_Txsenddata : out std_ulogic; -- to say to the Tx when doing the handshake not to send data that may be stored in the buffer
       o_header    :  out t_tcp_header;
       o_forwardTX :  out std_ulogic
  
     );
 end component;
 
-component RX is
+entity RX is
   -- bunch of things going here
   generic(
     memory_address_bits: natural := 14;
@@ -124,7 +144,7 @@ component RX is
 	application_tdata          : out std_ulogic_vector(data_size-1 downto 0)
   );
   
-end component;
+end RX;
 
   signal clk_internal, reset_internal: std_ulogic;
   signal forward_RX_internal, discard_internal, valid_RX_TOE_internal: std_ulogic
@@ -142,8 +162,8 @@ begin
 						 application_tdata => rx_application_tdata, application_tlast => rx_application_tlast, application_tready => rx_application_tready, application_tvalid => rx_application_tvalid
 						 );
   toe: toefsm port map(clk => clk_internal, reset => reset_internal,
-					   start => start, i_active_mode => i_active_mode, last => last, i_open => i_open, i_timeout => i_timeout, o_close => o_close,
-					   i_src_ip => i_src_ip, i_src_port => i_src_port, i_dst_ip => i_dst_ip, i_dst_port => i_dest_port,
+					   start => start, i_active_mode => i_active_mode, last => last, i_open => i_open, i_timeout => i_timeout, o_established => o_established,
+					   i_src_ip => i_src_ip, i_src_port => i_src_port, i_dst_ip => i_dst_ip, i_dst_port => i_dst_port,
 					   i_header => header_RX_TOE_internal, i_valid => valid_RX_TOE_internal, i_data_sizeRx => data_len_RX_TOE_internal,
 					   o_forwardRX => forward_RX_internal, o_discard => discard_internal,
 					   );
