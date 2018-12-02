@@ -168,21 +168,18 @@ begin
 
 		while test_suite loop
 			if run("read_faster") then
-            assert false;
 				r_clock_period <= 1 us;
 				w_clock_period <= 2 us;
 				wait for 1 us;
 				reset_async <= '0';
 				test_fifo(net, w_clock, w_allowed, w_enable, w_data);
 			elsif run("write_faster") then
-            assert false;
 				r_clock_period <= 2 us;
 				w_clock_period <= 1 us;
 				wait for 1 us;
 				reset_async <= '0';
 				test_fifo(net, w_clock, w_allowed, w_enable, w_data);
 			elsif run("same_speed") then
-            assert false;
 				r_clock_period <= 2 us;
 				w_clock_period <= 1 us;
 				wait for 1 us;
