@@ -57,7 +57,7 @@ package tcp_common is
 		urgent_ptr => (others => '0')
 	);
 	constant DATA_WIDTH : natural := 8;
-	constant APP_BUF_WIDTH : natural := 8;
+	constant APP_BUF_WIDTH : natural := 16;
 	constant NET_BUF_WIDTH : natural := 12;
 
 end package tcp_common;

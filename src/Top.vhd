@@ -17,7 +17,6 @@ entity Top is
     --------------------------------------------------------------------------------
     start          :  in  std_ulogic;
     i_active_mode  :  in  std_ulogic;
-    last	       :  in  std_ulogic; -- send data
     i_open         :  in  std_ulogic;     -- shall i save this to registers?
     i_timeout      :  in  unsigned (10 downto 0);
     o_established        :  out  std_ulogic;
@@ -41,27 +40,27 @@ entity Top is
 	rx_application_tvalid         : out std_ulogic;
 	rx_application_tlast          : out std_ulogic;
 	rx_application_tready         : in std_ulogic;
-	rx_application_tdata          : out std_ulogic_vector(data_size-1 downto 0);
+	rx_application_tdata          : out std_ulogic_vector(7 downto 0);
 	--------------------------------------------------------------------------------
     --between TX and  network
 	--------------------------------------------------------------------------------
-	tx_network_tvalid : in std_ulogic;
-	tx_network_tlast  : in std_ulogic;
-	tx_network_tready : out std_ulogic;
-	tx_network_tdata  : in std_ulogic_vector(7 downto 0);
+	tx_network_tvalid : out std_ulogic;
+	tx_network_tlast  : out std_ulogic;
+	tx_network_tready : in std_ulogic;
+	tx_network_tdata  : out std_ulogic_vector(7 downto 0);
 	--------------------------------------------------------------------------------
     --between TX and  application
 	--------------------------------------------------------------------------------
-	tx_application_tvalid         : out std_ulogic;
-	tx_application_tlast          : out std_ulogic;
-	tx_application_tready         : in std_ulogic;
-	tx_application_tdata          : out std_ulogic_vector(data_size-1 downto 0)
+	tx_application_tvalid         : in std_ulogic;
+	tx_application_tlast          : in std_ulogic;
+	tx_application_tready         : out std_ulogic;
+	tx_application_tdata          : in std_ulogic_vector(7 downto 0)
   );
 end Top;
 
 architecture structural of Top is
 
-entity toefsm is
+component toefsm is
    
    port(
       --------------------------------------------------------------------------------
@@ -97,7 +96,6 @@ entity toefsm is
       --------------------------------------------------------------------------------
       -- Inputs from Tx engine
       --------------------------------------------------------------------------------
-      i_data_inbuffer :  in std_ulogic;
       i_data_sizeApp  :  in unsigned(15 downto 0);
       --i_readytoSend  :  in  std_ulogic; -- send data
       
@@ -115,7 +113,7 @@ entity toefsm is
     );
 end component;
 
-entity RX is
+component RX is
   -- bunch of things going here
   generic(
     memory_address_bits: natural := 14;
@@ -144,15 +142,63 @@ entity RX is
 	application_tdata          : out std_ulogic_vector(data_size-1 downto 0)
   );
   
-end RX;
+end component;
+
+component tx_engine is
+	port (
+		--Clocked on rising edge
+		clock : in std_ulogic;
+		--Synchronous reset
+		i_reset : in std_ulogic;
+
+		--AXI stream for input data from application
+		i_app_axi_data : in std_ulogic_vector(DATA_WIDTH - 1 downto 0);
+		i_app_axi_valid : in std_ulogic;
+		o_app_axi_ready : out std_ulogic;
+		--Last signal will indicate TCP engine should flush buffer ASAP
+		i_app_axi_last : in std_ulogic;
+
+		--AXI stream outputting to network interface
+		o_net_axi_data : out std_ulogic_vector(DATA_WIDTH - 1 downto 0);
+		o_net_axi_valid : out std_ulogic;
+		i_net_axi_ready : in std_ulogic;
+		--Last signal will indicate the end of a packet
+		o_net_axi_last : out std_ulogic;
+
+		--Sequence number acknowledged by reciever. When this value increases,
+		--space in the buffer is freed.
+		i_ctrl_ack_num : in t_seq_num;
+		--Header with the packet to send. Must be valid for one clock cycle with
+		--when i_tx_start is high.
+		i_ctrl_packet_header : in t_tcp_header;
+		--Length of data to insert in packet.  Must be valid for one clock cycle
+		--with when i_tx_start is high.
+		i_ctrl_packet_data_length : in unsigned(APP_BUF_WIDTH - 1 downto 0);
+		--Set high for a single clock cycle to start transmission of a packet.
+		i_ctrl_tx_start : in std_ulogic;
+		--Outputs how many bytes are available in the buffer to transmit.
+		o_ctrl_data_bytes_available : out unsigned(APP_BUF_WIDTH - 1 downto 0);
+		--Outputs high only when the TX engine is free to send another packet.
+		o_ctrl_ready : out std_ulogic
+	);
+end component;
 
   signal clk_internal, reset_internal: std_ulogic;
-  signal forward_RX_internal, discard_internal, valid_RX_TOE_internal: std_ulogic
+  signal forward_RX_internal, discard_internal, valid_RX_TOE_internal: std_ulogic;
   signal data_len_RX_TOE_internal: std_ulogic_vector(15 downto 0);
+  signal data_len_RX_TOE_internal_as_unsigned: unsigned(15 downto 0);
   signal header_RX_TOE_internal: t_tcp_header;
+  
+  signal ack_num_TX_TOE_internal: t_seq_num;
+  signal packet_header_TX_TOE_internal: t_tcp_header;
+  signal packet_data_length_TX_TOE_internal: unsigned(APP_BUF_WIDTH - 1 downto 0);
+  signal tx_start_TX_TOE_internal: std_ulogic;
+  signal data_bytes_available_TX_TOE_interal: unsigned(APP_BUF_WIDTH - 1 downto 0);
+  signal ready_TX_TOE_internal: std_ulogic;
 begin
   clk_internal <= clk;
   reset_internal <= reset;
+  data_len_RX_TOE_internal_as_unsigned <= unsigned(data_len_RX_TOE_internal);
   
   rx_engine: RX generic map(16, 8)
 				port map(clk => clk_internal, reset => reset_internal,
@@ -162,9 +208,15 @@ begin
 						 application_tdata => rx_application_tdata, application_tlast => rx_application_tlast, application_tready => rx_application_tready, application_tvalid => rx_application_tvalid
 						 );
   toe: toefsm port map(clk => clk_internal, reset => reset_internal,
-					   start => start, i_active_mode => i_active_mode, last => last, i_open => i_open, i_timeout => i_timeout, o_established => o_established,
+					   start => start, i_active_mode => i_active_mode, last => tx_application_tlast, i_open => i_open, i_timeout => i_timeout, o_established => o_established,
 					   i_src_ip => i_src_ip, i_src_port => i_src_port, i_dst_ip => i_dst_ip, i_dst_port => i_dst_port,
-					   i_header => header_RX_TOE_internal, i_valid => valid_RX_TOE_internal, i_data_sizeRx => data_len_RX_TOE_internal,
+					   i_header => header_RX_TOE_internal, i_valid => valid_RX_TOE_internal, i_data_sizeRx => data_len_RX_TOE_internal_as_unsigned,
 					   o_forwardRX => forward_RX_internal, o_discard => discard_internal,
-					   );
+					   i_data_sizeApp => packet_data_length_TX_TOE_internal, o_header => packet_header_TX_TOE_internal, o_forwardTX => tx_start_TX_TOE_internal);
+					   
+  tx_eng: tx_engine port map(clock => clk, i_reset => reset,
+							 i_ctrl_ack_num => ack_num_TX_TOE_internal, i_ctrl_packet_header => packet_header_TX_TOE_internal, i_ctrl_packet_data_length => packet_data_length_TX_TOE_internal,
+							 i_ctrl_tx_start => tx_start_TX_TOE_internal, o_ctrl_data_bytes_available => data_bytes_available_TX_TOE_interal, o_ctrl_ready => ready_TX_TOE_internal,
+							 i_app_axi_data => tx_application_tdata, i_app_axi_last => tx_application_tlast, o_app_axi_ready => tx_application_tready, i_app_axi_valid => tx_application_tvalid,
+							 o_net_axi_data => tx_network_tdata, o_net_axi_last => tx_network_tlast, i_net_axi_ready => tx_network_tready, o_net_axi_valid => tx_network_tvalid);
 end structural;

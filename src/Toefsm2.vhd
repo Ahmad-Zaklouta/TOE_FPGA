@@ -40,7 +40,6 @@ entity toefsm is
       --------------------------------------------------------------------------------
       -- Inputs from Tx engine
       --------------------------------------------------------------------------------
-      i_data_inbuffer :  in std_ulogic;
       i_data_sizeApp  :  in unsigned(15 downto 0);
       --i_readytoSend  :  in  std_ulogic; -- send data
       
@@ -279,7 +278,7 @@ begin
                
             elsif w_waiforbuffer = '1' then
               -- o_close <= '1';
-               if i_data_inbuffer = '1'   then
+               if i_data_sizeApp /= X"0000"   then
                   next_state <= ESTABLISHED;
                else
                   w_waiforbuffer <= '0';
@@ -372,7 +371,7 @@ begin
                         r_next_header.ack_num <= r_header.ack_num + i_data_sizeRx + 1; --- plus 1 for FIN 
                      end if;
                      
-                     if i_data_inbuffer = '1'   then 
+                     if i_data_sizeApp /= X"0000"   then 
                         w_waiforbuffer <= '1';
                         next_state <=  ESTABLISHED; 
                      else  
@@ -467,7 +466,7 @@ begin
                         r_next_header.ack_num <= r_header.ack_num + i_data_sizeRx + 1; --- + 1 here MAYBE? FOR FIN? 
                      end if;
                      
-                     if i_data_inbuffer = '1'   then 
+                     if i_data_sizeApp /= X"0000"   then 
                         w_waiforbuffer <= '1';
                         r_next_forwardTX <= '0';
                         next_state <=  ESTABLISHED; 
@@ -676,7 +675,6 @@ begin
                r_header.dst_ip       <= (others => '0');
                r_header.src_port     <= (others => '0');
                r_header.dst_port     <= (others => '0');
-               r_header.length       <= (others => '0');
                r_header.seq_num      <= (others => '0');
                r_header.ack_num      <= (others => '0');
                r_header.data_offset  <= (others => '0');
