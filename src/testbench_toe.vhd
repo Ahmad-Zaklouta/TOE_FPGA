@@ -121,7 +121,7 @@ end process;
 app: application port map(clk => clk, reset => reset,
 						  o_start => start_internal, o_active_mode => active_mode_internal, o_open => open_internal, o_timeout => timeout_internal, i_close => close_internal,
 						  o_src_ip => src_ip_internal, o_dst_ip => dst_ip_internal, o_src_port => src_port_internal, o_dst_port => dst_port_internal,
-						  rx_tdata => app_rx_tdata_internal, tx_tdata => app_tx_tdata_internal, rx_tvalid => app_rx_tvalid, tx_tready => app_tx_tready,
+						  rx_tdata => app_rx_tdata_internal, tx_tdata => app_tx_tdata_internal, rx_tvalid => app_rx_tvalid, tx_tvalid => app_tx_tvalid, tx_tready => app_tx_tready,
 						  rx_tready => app_rx_tready, rx_tlast => app_rx_tlast, tx_tlast => app_tx_tlast);
 
 top1: Top port map(clk => clk, reset => reset,

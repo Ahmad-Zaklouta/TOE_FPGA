@@ -75,12 +75,12 @@ begin
 		end if;
       when forward_data	=>
 	    o_ready <= '0';
-	  
-        if (tready = '0') then
+		tvalid <= '1';
+        
+		if (tready = '0') then
            -- do nothing
         else
 		  read_enabled <= '1';
-		  tvalid <= '1';
 		  read_address_next <= std_ulogic_vector(unsigned(read_address) + 1);
 	      data_to_send_next <= std_ulogic_vector(unsigned(data_to_send) - 1);
 		  if (unsigned(data_to_send) = 0) then

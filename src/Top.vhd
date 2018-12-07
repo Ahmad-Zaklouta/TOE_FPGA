@@ -97,7 +97,7 @@ component toefsm is
       -- Inputs from Tx engine
       --------------------------------------------------------------------------------
       i_data_sizeApp  :  in unsigned(15 downto 0);
-      --i_readytoSend  :  in  std_ulogic; -- send data
+      i_Txready  :  in  std_ulogic; 
       
       --------------------------------------------------------------------------------
       -- AXI interface
@@ -109,7 +109,7 @@ component toefsm is
       --o_Txsenddata : out std_ulogic; -- to say to the Tx when doing the handshake not to send data that may be stored in the buffer
       o_header    :  out t_tcp_header;
       o_forwardTX :  out std_ulogic
- 
+	  
     );
 end component;
 
@@ -165,21 +165,21 @@ component tx_engine is
 		--Last signal will indicate the end of a packet
 		o_net_axi_last : out std_ulogic;
 
-		--Sequence number acknowledged by reciever. When this value increases,
+		--Sequence number acknowledged by receiver. When this value increases,
 		--space in the buffer is freed.
-		i_ctrl_ack_num : in t_seq_num;
+		
 		--Header with the packet to send. Must be valid for one clock cycle with
 		--when i_tx_start is high.
-		i_ctrl_packet_header : in t_tcp_header;
+		i_ctrl_packet_header : in t_tcp_header; --o_header
 		--Length of data to insert in packet.  Must be valid for one clock cycle
 		--with when i_tx_start is high.
 		i_ctrl_packet_data_length : in unsigned(APP_BUF_WIDTH - 1 downto 0);
 		--Set high for a single clock cycle to start transmission of a packet.
-		i_ctrl_tx_start : in std_ulogic;
+		i_ctrl_tx_start : in std_ulogic; -- o_forwardTX
 		--Outputs how many bytes are available in the buffer to transmit.
-		o_ctrl_data_bytes_available : out unsigned(APP_BUF_WIDTH - 1 downto 0);
+		o_ctrl_data_bytes_available : out unsigned(APP_BUF_WIDTH - 1 downto 0); -- i_data_sizeApp
 		--Outputs high only when the TX engine is free to send another packet.
-		o_ctrl_ready : out std_ulogic
+		o_ctrl_ready : out std_ulogic 
 	);
 end component;
 
@@ -189,7 +189,7 @@ end component;
   signal data_len_RX_TOE_internal_as_unsigned: unsigned(15 downto 0);
   signal header_RX_TOE_internal: t_tcp_header;
   
-  signal ack_num_TX_TOE_internal: t_seq_num;
+  
   signal packet_header_TX_TOE_internal: t_tcp_header;
   signal packet_data_length_TX_TOE_internal: unsigned(APP_BUF_WIDTH - 1 downto 0);
   signal tx_start_TX_TOE_internal: std_ulogic;
@@ -212,10 +212,10 @@ begin
 					   i_src_ip => i_src_ip, i_src_port => i_src_port, i_dst_ip => i_dst_ip, i_dst_port => i_dst_port,
 					   i_header => header_RX_TOE_internal, i_valid => valid_RX_TOE_internal, i_data_sizeRx => data_len_RX_TOE_internal_as_unsigned,
 					   o_forwardRX => forward_RX_internal, o_discard => discard_internal,
-					   i_data_sizeApp => packet_data_length_TX_TOE_internal, o_header => packet_header_TX_TOE_internal, o_forwardTX => tx_start_TX_TOE_internal);
+					   i_data_sizeApp => data_bytes_available_TX_TOE_interal, o_header => packet_header_TX_TOE_internal, o_forwardTX => tx_start_TX_TOE_internal, i_Txready <= ready_TX_TOE_internal);
 					   
   tx_eng: tx_engine port map(clock => clk, i_reset => reset,
-							 i_ctrl_ack_num => ack_num_TX_TOE_internal, i_ctrl_packet_header => packet_header_TX_TOE_internal, i_ctrl_packet_data_length => packet_data_length_TX_TOE_internal,
+							 i_ctrl_packet_header => packet_header_TX_TOE_internal, i_ctrl_packet_data_length => packet_data_length_TX_TOE_internal,
 							 i_ctrl_tx_start => tx_start_TX_TOE_internal, o_ctrl_data_bytes_available => data_bytes_available_TX_TOE_interal, o_ctrl_ready => ready_TX_TOE_internal,
 							 i_app_axi_data => tx_application_tdata, i_app_axi_last => tx_application_tlast, o_app_axi_ready => tx_application_tready, i_app_axi_valid => tx_application_tvalid,
 							 o_net_axi_data => tx_network_tdata, o_net_axi_last => tx_network_tlast, i_net_axi_ready => tx_network_tready, o_net_axi_valid => tx_network_tvalid);

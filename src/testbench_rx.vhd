@@ -33,7 +33,7 @@ architecture behavioural of testbench_rx is
 	o_data      : out std_ulogic_vector(7 downto 0);
 	o_we        : out std_ulogic;
 	i_address_r : in  std_ulogic_vector(memory_address_bits downto 0);
-	i_ready_TOE : in std_ulogic
+	i_ready_buffer : in std_ulogic
   );
 end component;
 

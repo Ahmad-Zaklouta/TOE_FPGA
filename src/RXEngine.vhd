@@ -30,7 +30,7 @@ entity rx_engine is
 	o_data      : out std_ulogic_vector(7 downto 0);
 	o_we        : out std_ulogic;
 	i_address_r : in  std_ulogic_vector(memory_address_bits downto 0);
-	i_ready_TOE : in std_ulogic
+	i_ready_buffer : in std_ulogic
   );
 end rx_engine;
 
@@ -221,13 +221,14 @@ begin
 		  end if;
 		end if;
 	when resolve_odd =>
+	   tready <= '0';
 	   checksum_data <= X"00";
        state_next <= send_last_pseud_header;
 	-- not my fault somebody had this stupid idea with pseudo header... YEAH I AM LOOKING AT YOU KAHN!!!
 	when send_last_pseud_header =>
 	  checksum_en <= '1';
 	  checksum_valid <= '1';
-	  
+	  tready <= '0';
 	  
 	  if(unsigned(count) = 0) then
 	    checksum_data <= X"00";
@@ -244,19 +245,21 @@ begin
 		checksum_last <= '1';
 	  end if;
 	when wait_checksum =>
-	    if(checksum_error ='0' and checksum_finished = '1' and i_ready_TOE = '1') then
+		tready <= '0';
+	    if(checksum_error ='0' and checksum_finished = '1') then
 		  o_valid <= '1';
 		  state_next <= wait_toe;
-		elsif(checksum_error = '1' and checksum_finished ='1' and i_ready_TOE = '1') then
+		elsif(checksum_error = '1' and checksum_finished ='1') then
 		  address_write_next <= address_init;
 		  state_next <= await;
 		end if;
-	  when wait_toe =>
+	when wait_toe =>
 	    --check the checksum here
+		o_valid <='1';
 		tready <= '0';
-		if(i_forwardRX = '1' and i_ready_TOE = '1') then
+		if(i_forwardRX = '1' and i_ready_buffer = '1') then
 		  state_next <= await;
-		elsif(i_discard = '1' and i_ready_TOE = '1') then
+		elsif(i_discard = '1' and i_ready_buffer = '1') then
 		  state_next <= await;
 		  address_write_next <= address_init;
 		end if;
