@@ -33,13 +33,13 @@ architecture behaviour of dual_port_ram_tb is
 		ADDRESS_WIDTH : natural
 	);
 	port (
-		a_clock : in std_ulogic;
+		clock : in std_ulogic;
+
 		a_address : in std_ulogic_vector(ADDRESS_WIDTH - 1 downto 0);
 		a_data_in : in std_ulogic_vector(DATA_WIDTH - 1 downto 0);
 		a_data_out : out std_ulogic_vector(DATA_WIDTH - 1 downto 0);
 		a_write_enable : in std_ulogic;
 
-		b_clock : in std_ulogic;
 		b_address : in std_ulogic_vector(ADDRESS_WIDTH - 1 downto 0);
 		b_data_in : in std_ulogic_vector(DATA_WIDTH - 1 downto 0);
 		b_data_out : out std_ulogic_vector(DATA_WIDTH - 1 downto 0);
@@ -47,13 +47,13 @@ architecture behaviour of dual_port_ram_tb is
 	);
 	end component;
 
-	signal a_clock : std_ulogic;
+	signal clock : std_ulogic;
+
 	signal a_address : std_ulogic_vector(ADDRESS_WIDTH - 1 downto 0);
 	signal a_data_in : std_ulogic_vector(DATA_WIDTH - 1 downto 0);
 	signal a_data_out : std_ulogic_vector(DATA_WIDTH - 1 downto 0);
 	signal a_write_enable : std_ulogic;
 
-	signal b_clock : std_ulogic;
 	signal b_address : std_ulogic_vector(ADDRESS_WIDTH - 1 downto 0);
 	signal b_data_in : std_ulogic_vector(DATA_WIDTH - 1 downto 0);
 	signal b_data_out : std_ulogic_vector(DATA_WIDTH - 1 downto 0);
@@ -66,12 +66,11 @@ begin
 		DATA_WIDTH => DATA_WIDTH
 	)
 	port map(
-		a_clock => a_clock,
+		clock => clock,
 		a_address => a_address,
 		a_data_in => a_data_in,
 		a_data_out => a_data_out,
 		a_write_enable => a_write_enable,
-		b_clock => b_clock,
 		b_address => b_address,
 		b_data_in => b_data_in,
 		b_data_out => b_data_out,
@@ -92,7 +91,7 @@ begin
 				for i in 0 to 15 loop
 					a_address <= std_ulogic_vector(to_unsigned(i, 4));
 					a_data_in <= std_ulogic_vector(to_unsigned(i + 1, 16));
-					pulse(a_clock);
+					pulse(clock);
 					--report "wrote " & to_string(a_data_in) & " to " & to_string(a_address);
 					--report "read " & to_string(a_data_out) & " from " & to_string(a_address);
 					assert a_data_out = std_ulogic_vector(to_unsigned(i + 1, 16));
@@ -101,7 +100,7 @@ begin
 
 				for i in 0 to 15 loop
 					b_address <= std_ulogic_vector(to_unsigned(i, 4));
-					pulse(b_clock);
+					pulse(clock);
 					--report "read " & to_string(b_data_out) & " from " & to_string(b_address);
 					assert b_data_out = std_ulogic_vector(to_unsigned(i + 1, 16));
 				end loop;

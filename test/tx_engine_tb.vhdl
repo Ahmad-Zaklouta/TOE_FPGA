@@ -46,7 +46,7 @@ architecture behaviour of tx_engine_tb is
 		i_ctrl_packet_header : in t_tcp_header;
 		--Length of data to insert in packet.  Must be valid for one clock cycle
 		--with when i_tx_start is high.
-		i_ctrl_packet_data_length : in unsigned(APP_BUF_WIDTH - 1 downto 0);
+		i_ctrl_packet_data_length : in unsigned(15 downto 0);
 		--Set high for a single clock cycle to start transmission of a packet.
 		i_ctrl_tx_start : in std_ulogic;
 		--Outputs how many bytes are available in the buffer to transmit.
@@ -162,7 +162,7 @@ begin
 				wait until rising_edge(clock);
 				wait until rising_edge(clock);
 
-				i_ctrl_packet_data_length <= (X"10");
+				i_ctrl_packet_data_length <= X"0010";
 				i_ctrl_tx_start <= '1';
 				wait until rising_edge(clock);
 				i_ctrl_tx_start <= '0';
