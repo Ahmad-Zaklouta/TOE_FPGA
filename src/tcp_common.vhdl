@@ -122,8 +122,8 @@ package body tcp_common is
 			when 22 => ret := std_ulogic_vector(header.window_size(15 downto 8));
 			when 23 => ret := std_ulogic_vector(header.window_size( 7 downto 0));
 
-			when 24 => ret := X"55";--header.checksum(15 downto 8);
-			when 25 => ret := X"AA";--header.checksum( 7 downto 0);
+			when 24 => ret := header.checksum(15 downto 8);
+			when 25 => ret := header.checksum( 7 downto 0);
 			when 26 => ret := std_ulogic_vector(header.urgent_ptr(15 downto 8));
 			when 27 => ret := std_ulogic_vector(header.urgent_ptr( 7 downto 0));
 		end case;
