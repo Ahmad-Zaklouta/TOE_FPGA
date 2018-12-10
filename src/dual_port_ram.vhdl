@@ -27,19 +27,19 @@ architecture behaviour of dual_port_ram is
 	type memory_array_type is array(2**ADDRESS_WIDTH - 1 downto 0)
 		of std_ulogic_vector(DATA_WIDTH - 1 downto 0);
 
-	signal memory_array : memory_array_type;
 begin
 	process (clock)
+		variable memory_array : memory_array_type;
 	begin
 		if rising_edge(clock) then
 			if a_write_enable = '1' then
-				memory_array(to_integer(unsigned(a_address))) <= a_data_in;
+				memory_array(to_integer(unsigned(a_address))) := a_data_in;
 				a_data_out <= a_data_in;
 			else
 				a_data_out <= memory_array(to_integer(unsigned(a_address)));
 			end if;
 			if b_write_enable = '1' then
-				memory_array(to_integer(unsigned(b_address))) <= b_data_in;
+				memory_array(to_integer(unsigned(b_address))) := b_data_in;
 				b_data_out <= b_data_in;
 			else
 				b_data_out <= memory_array(to_integer(unsigned(b_address)));
