@@ -102,7 +102,7 @@ begin
 
   rx_engine_comp: rx_engine generic map(memory_address_bits)
                   port map(clk => clk, reset => reset, i_forwardRX => i_forwardRX, i_discard => i_discard, 
-				           o_header => o_header, o_valid => o_valid, o_data_len => data_length, i_ready_TOE => ready,
+				           o_header => o_header, o_valid => o_valid, o_data_len => data_length, i_ready_buffer => ready,
 						   tvalid => network_tvalid, tlast => network_tlast, tready => network_tready, tdata => network_tdata,
 						   o_address => write_address, o_data => data, o_we => we, i_address_r => read_address);
 				  

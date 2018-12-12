@@ -108,7 +108,8 @@ signal app_rx_tvalid, app_tx_tvalid, app_rx_tready,
 signal tx_tready1_internal, tx_tready2_internal, tx_tvalid1_internal, tx_tvalid2_internal, tx_tlast1_internal, tx_tlast2_internal: std_ulogic;
 signal rx_tready1_internal, rx_tready2_internal, rx_tvalid1_internal, rx_tvalid2_internal, rx_tlast1_internal, rx_tlast2_internal: std_ulogic;
 signal rx_tdata1_internal, rx_tdata2_internal, tx_tdata1_internal, tx_tdata2_internal: std_ulogic_vector(7 downto 0);
-
+signal and_rx_tx: std_ulogic;
+signal internal_established_2, internal_valid_2: std_ulogic;
 begin
 
 reset<='1', '0' after 50 ns;
@@ -116,6 +117,8 @@ clk_proc: process(clk)
 begin
     clk <= not clk after 5 ns;
 end process;
+
+and_rx_tx <= internal_established_2 and internal_valid_2;
 
 
 app: application port map(clk => clk, reset => reset,
@@ -132,10 +135,10 @@ top1: Top port map(clk => clk, reset => reset,
 				   tx_network_tvalid => tx_tvalid1_internal, tx_network_tlast => tx_tlast1_internal, tx_network_tready => tx_tready1_internal, tx_network_tdata => tx_tdata1_internal,
 				   tx_application_tvalid => app_tx_tvalid, tx_application_tlast => app_tx_tlast, tx_application_tready => app_tx_tready, tx_application_tdata => app_tx_tdata_internal);
 top2: Top port map(clk => clk, reset => reset,
-				   start => '1', i_active_mode => '0', i_open => '1', i_timeout => (others => '0'), o_established => open,
+				   start => '1', i_active_mode => '0', i_open => '1', i_timeout => (others => '1'), o_established => internal_established_2,
 				   i_src_ip => x"00000002", i_dst_ip => x"00000002", i_src_port => x"0002", i_dst_port => x"0002",
 				   rx_network_tvalid => tx_tvalid1_internal, rx_network_tlast => tx_tlast1_internal, rx_network_tready => tx_tready1_internal, rx_network_tdata => tx_tdata1_internal,
-				   rx_application_tvalid => rx_tvalid2_internal, rx_application_tlast => rx_tlast2_internal, rx_application_tready => rx_tready2_internal, rx_application_tdata => rx_tdata2_internal,
+				   rx_application_tvalid => internal_valid_2, rx_application_tlast => rx_tlast2_internal, rx_application_tready => rx_tready2_internal, rx_application_tdata => rx_tdata2_internal,
 				   tx_network_tvalid => rx_tvalid1_internal, tx_network_tlast => rx_tlast1_internal, tx_network_tready => rx_tready1_internal, tx_network_tdata => rx_tdata1_internal,
-				   tx_application_tvalid => rx_tvalid2_internal, tx_application_tlast => rx_tlast2_internal, tx_application_tready => rx_tready2_internal, tx_application_tdata => tx_tdata2_internal);					  
+				   tx_application_tvalid => and_rx_tx, tx_application_tlast => rx_tlast2_internal, tx_application_tready => rx_tready2_internal, tx_application_tdata => tx_tdata2_internal);					  
 end behavioural;

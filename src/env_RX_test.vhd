@@ -3,7 +3,7 @@ USE IEEE.std_logic_1164.ALL;
 USE IEEE.numeric_std.ALL;
 
 
-entity env is
+entity env_rx_engine is
   port ( 
     clk            : in std_ulogic; -- system clock
     reset          : in std_ulogic; -- asynchronous reset
@@ -12,9 +12,9 @@ entity env is
 	tdata          : out std_ulogic_vector(7 downto 0);
 	tlast          : out std_ulogic
   );
-end env;
+end env_rx_engine;
 
-architecture behavioural of env is
+architecture behavioural of env_rx_engine is
   type state_t is (start, start_tx, send_data, prefinish, finish);
   type FRAME_1 is array(0 to 27) of std_ulogic_vector(7 downto 0);
   signal state, state_next : state_t;
@@ -22,7 +22,7 @@ architecture behavioural of env is
 X"10",
 X"4a",
 X"0c",
-X"34",
+X"33",
 X"6d",
 X"78",
 X"14",

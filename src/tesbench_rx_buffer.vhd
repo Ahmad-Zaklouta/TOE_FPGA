@@ -31,7 +31,7 @@ architecture behavioural of testbench_rx_buffer is
 	  tdata          : out std_ulogic_vector(data_size-1 downto 0);
 	  -- between RX Engine and buffer
 	  o_read_address : out std_ulogic_vector(memory_address_bits downto 0);
-      i_data_length  : in std_ulogic_vector(13 downto 0);
+      i_data_length  : in std_ulogic_vector(15 downto 0);
 	  i_write_address: in std_ulogic_vector(memory_address_bits downto 0);
 	  i_data         : in std_ulogic_vector(data_size-1 downto 0);
 	  i_we           : in std_ulogic;
@@ -43,7 +43,7 @@ architecture behavioural of testbench_rx_buffer is
     port ( 
       clk            : in std_ulogic; -- system clock
       reset          : in std_ulogic; -- asynchronous reset
-      data_length    : out std_ulogic_vector(13 downto 0);
+      data_length    : out std_ulogic_vector(15 downto 0);
       forward_RX     : out std_ulogic;
 	  write_address  : out std_ulogic_vector(16 downto 0);
 	  d_out           : out std_ulogic_vector(7 downto 0);
@@ -53,7 +53,7 @@ architecture behavioural of testbench_rx_buffer is
 
   signal clk, reset, forward_RX, we: std_ulogic := '0';
   signal write_address: std_ulogic_vector(memory_address_bits downto 0);
-  signal data_length  : std_ulogic_vector(13 downto 0);
+  signal data_length  : std_ulogic_vector(15 downto 0);
   signal data         : std_ulogic_vector(data_size-1 downto 0);
 begin
 

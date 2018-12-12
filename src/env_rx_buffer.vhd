@@ -7,7 +7,7 @@ entity env_rx_buffer is
   port ( 
     clk            : in std_ulogic; -- system clock
     reset          : in std_ulogic; -- asynchronous reset
-    data_length    : out std_ulogic_vector(13 downto 0);
+    data_length    : out std_ulogic_vector(15 downto 0);
     forward_RX     : out std_ulogic;
 	write_address  : out std_ulogic_vector(16 downto 0);
 	d_out           : out std_ulogic_vector(7 downto 0);
