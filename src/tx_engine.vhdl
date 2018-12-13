@@ -161,22 +161,7 @@ begin
 			when 0 => --waiting
 				if i_ctrl_tx_start = '1' then
 					nxt.tx_packet_header <= i_ctrl_packet_header;
-					nxt.tx_packet_header.checksum <=
-						--make this fixed size
-						(15 downto i_ctrl_packet_data_length'length => '0') & std_ulogic_vector(i_ctrl_packet_data_length) xor
-						i_ctrl_packet_header.src_ip(31 downto 16) xor
-						i_ctrl_packet_header.src_ip(15 downto 0) xor
-						i_ctrl_packet_header.dst_ip(31 downto 16) xor
-						i_ctrl_packet_header.dst_ip(15 downto 0) xor
-						std_ulogic_vector(i_ctrl_packet_header.src_port) xor
-						std_ulogic_vector(i_ctrl_packet_header.dst_port) xor
-						std_ulogic_vector(i_ctrl_packet_header.seq_num(31 downto 16)) xor
-						std_ulogic_vector(i_ctrl_packet_header.seq_num(15 downto 0)) xor
-						std_ulogic_vector(i_ctrl_packet_header.ack_num(31 downto 16)) xor
-						std_ulogic_vector(i_ctrl_packet_header.ack_num(15 downto 0)) xor
-						(std_ulogic_vector(i_ctrl_packet_header.data_offset) & "000" & i_ctrl_packet_header.flags) xor
-						std_ulogic_vector(i_ctrl_packet_header.window_size) xor
-						std_ulogic_vector(i_ctrl_packet_header.urgent_ptr);
+					nxt.tx_packet_header.checksum <= X"0006"; --TCP protocol identifier
 					nxt.tx_packet_data_length <= to_integer(i_ctrl_packet_data_length);
 					nxt.tx_header_byte <= 0;
 					nxt.tx_data_byte <= 0;
@@ -199,6 +184,13 @@ begin
 			when 3 => --output header
 				if net_buf_write_possible = '1' then
 					net_buf_write_data <= tcp_header_get_byte(reg.tx_packet_header, reg.tx_header_byte);
+					if (reg.tx_header_byte /= 24) and (reg.tx_header_byte /= 25) then
+						if (reg.tx_header_byte mod 2) = 0 then
+							nxt.tx_packet_header.checksum <= add_oc(reg.tx_packet_header.checksum, tcp_header_get_byte(reg.tx_packet_header, reg.tx_header_byte) & X"00");
+						else
+							nxt.tx_packet_header.checksum <= add_oc(reg.tx_packet_header.checksum, X"00" & tcp_header_get_byte(reg.tx_packet_header, reg.tx_header_byte));
+						end if;
+					end if;
 					nxt.net_buf_write_ptr <= reg.net_buf_write_ptr + 1;
 					net_buf_write_enable <= '1';
 					nxt.tx_header_byte <= reg.tx_header_byte + 1;
@@ -211,9 +203,9 @@ begin
 				if net_buf_write_possible = '1' and app_buf_read_possible = '1' then
 					net_buf_write_data <= app_buf_read_data;
 					if (reg.tx_data_byte mod 2) = 0 then
-						nxt.tx_packet_header.checksum(15 downto 8) <= reg.tx_packet_header.checksum(15 downto 8) xor app_buf_read_data;
+						nxt.tx_packet_header.checksum <= add_oc(reg.tx_packet_header.checksum, app_buf_read_data & X"00");
 					else
-						nxt.tx_packet_header.checksum(7 downto 0) <= reg.tx_packet_header.checksum(7 downto 0) xor app_buf_read_data;
+						nxt.tx_packet_header.checksum <= add_oc(reg.tx_packet_header.checksum, X"00" & app_buf_read_data);
 					end if;
 					nxt.app_buf_read_ptr <= reg.app_buf_read_ptr + 1;
 					nxt.net_buf_write_ptr <= reg.net_buf_write_ptr + 1;
@@ -225,12 +217,12 @@ begin
 					end if;
 				end if;
 			when 5 => --write checksum MSB
-				net_buf_write_data <= reg.tx_packet_header.checksum(15 downto 8);
+				net_buf_write_data <= not reg.tx_packet_header.checksum(15 downto 8);
 				net_buf_write_enable <= '1';
 				nxt.net_buf_write_ptr <= reg.net_buf_write_ptr + 1;
 				nxt.tx_state <= reg.tx_state + 1;
 			when 6 => --write checksum LSB
-				net_buf_write_data <= reg.tx_packet_header.checksum(7 downto 0);
+				net_buf_write_data <= not reg.tx_packet_header.checksum(7 downto 0);
 				net_buf_write_enable <= '1';
 				nxt.net_buf_write_ptr <= reg.net_buf_write_ptr + 1;
 				nxt.tx_state <= reg.tx_state + 1;

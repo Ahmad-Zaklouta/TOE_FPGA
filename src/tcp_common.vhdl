@@ -41,6 +41,11 @@ package tcp_common is
 		n : integer range 0 to 65535
 	) return t_tcp_port;
 
+	function add_oc(
+		a : std_ulogic_vector;
+		b : std_ulogic_vector
+	) return std_ulogic_vector;
+
 	constant c_default_tcp_header : t_tcp_header := (
 		src_ip => (others => '0'),
 		dst_ip => (others => '0'),
@@ -128,6 +133,20 @@ package body tcp_common is
 			when 27 => ret := std_ulogic_vector(header.urgent_ptr( 7 downto 0));
 		end case;
 		return ret;
+	end function;
+
+	function add_oc(
+		a : std_ulogic_vector;
+		b : std_ulogic_vector
+	) return std_ulogic_vector is
+		variable sum : unsigned(a'length downto 0);
+	begin
+		sum := unsigned("0" & a) + unsigned("0" & b);
+		if sum(a'length) = '0' then
+			return std_ulogic_vector(sum((a'length - 1) downto 0));
+		else
+			return std_ulogic_vector(sum((a'length - 1) downto 0) + 1);
+		end if;
 	end function;
 
 end tcp_common;
