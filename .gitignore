@@ -28,6 +28,7 @@ quartus/incremental_db
 quartus/output_files
 quartus/simulation
 */vunit_out
+tun_interface/build
 
 # file extensions to ignore
 *.qws
