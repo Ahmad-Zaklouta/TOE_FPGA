@@ -127,10 +127,10 @@ begin
 		   state_next <= prefinish;
 		end if;
 	  when prefinish =>
-	    discard <= '1';
+	    forward_RX <= '1';
 	    state_next <= finish;
 	  when finish =>
-	     forward_RX <= '0';
+	     forward_RX <= '1';
 	     --data_out <= (others => '0');
 	     --state_next <= finish;
 		 --assert fcs_error = '0' report "Error spotted" severity failure;

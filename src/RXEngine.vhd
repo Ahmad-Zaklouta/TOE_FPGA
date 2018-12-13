@@ -84,7 +84,14 @@ begin
   o_address <= address_write;
   o_header <= header_register;
   data_length_checksum <= std_ulogic_vector(unsigned(data_length) + 20);
-  
+  header13 <= header_buffer(20);
+  header14 <= header_buffer(21);
+  header15 <= header_buffer(22);
+  header16 <= header_buffer(23);
+  header17 <= header_buffer(24);
+  header18 <= header_buffer(25);
+  header19 <= header_buffer(26); 
+  header20 <= header_buffer(27);
   
   comb: process(state, tvalid, tlast, tdata, i_forwardRX, i_discard, checksum_error, checksum_finished, address_write, address_read, address_init, count, header_count, byte_buffer, 
 				full_wait, data_length, header_buffer)
@@ -92,14 +99,7 @@ begin
     tready <= '1';
 	o_valid <= '0';
 	o_data <= tdata;
-	header13 <= header_buffer(20);
-	header14 <= header_buffer(21);
-	header15 <= header_buffer(22);
-	header16 <= header_buffer(23);
-	header17 <= header_buffer(24);
-	header18 <= header_buffer(25);
-	header19 <= header_buffer(26); 
-	header20 <= header_buffer(27);
+	
 	checksum_en <= '0';
 	checksum_valid <= '0';
 	checksum_last  <= '0';
@@ -253,8 +253,8 @@ begin
 		  o_valid <= '1';
 		  state_next <= wait_toe;
 		elsif(checksum_error = '1' and checksum_finished ='1') then
-		  --address_write_next <= address_init;
-		  o_valid <= '1'; --for testing purposes we don`t care if the packet was correct or not, since in TX we don`t have correct checksum computation... Not my fault... Addition using XOR wtf!?
+		  address_write_next <= address_init;
+		  o_valid <= '1'; 
 		  state_next <= wait_toe;
 		end if;
 	when wait_toe =>
