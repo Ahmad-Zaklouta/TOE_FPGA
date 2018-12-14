@@ -63,7 +63,7 @@ architecture behavioural of RX is
 	  o_data      : out std_ulogic_vector(7 downto 0);
 	  o_we        : out std_ulogic;
 	  i_address_r : in  std_ulogic_vector(memory_address_bits downto 0);
-	  i_ready_TOE : in std_ulogic
+	  i_ready_buffer : in std_ulogic
     );
   end component;
   
@@ -102,7 +102,7 @@ begin
 
   rx_engine_comp: rx_engine generic map(memory_address_bits)
                   port map(clk => clk, reset => reset, i_forwardRX => i_forwardRX, i_discard => i_discard, 
-				           o_header => o_header, o_valid => o_valid, o_data_len => data_length, i_ready_TOE => ready,
+				           o_header => o_header, o_valid => o_valid, o_data_len => data_length, i_ready_buffer => ready,
 						   tvalid => network_tvalid, tlast => network_tlast, tready => network_tready, tdata => network_tdata,
 						   o_address => write_address, o_data => data, o_we => we, i_address_r => read_address);
 				  

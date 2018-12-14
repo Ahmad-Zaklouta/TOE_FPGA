@@ -72,11 +72,8 @@ begin
 	  when start_trans =>
 	    o_start <= '1';
 		o_open <= '1';
-	    if (tx_tready = '1') then
-		   tx_tvalid <= '1';
-		   tx_tdata <= frame_1(i);
-		   i <= i + 1;
-		   state <= send_frame1;
+	    if (i_close = '1') then
+			state <= send_frame1;
 		end if;
 	  when send_frame1 =>
 	   tx_tvalid <= '1';

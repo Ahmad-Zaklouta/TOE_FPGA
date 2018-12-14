@@ -33,13 +33,13 @@ architecture behavioural of testbench_rx is
 	o_data      : out std_ulogic_vector(7 downto 0);
 	o_we        : out std_ulogic;
 	i_address_r : in  std_ulogic_vector(memory_address_bits downto 0);
-	i_ready_TOE : in std_ulogic
+	i_ready_buffer : in std_ulogic
   );
 end component;
 
 
   
-  component env is
+  component env_rx_engine is
     port ( 
       clk            : in std_ulogic; -- system clock
       reset          : in std_ulogic; -- asynchronous reset
@@ -67,8 +67,8 @@ end process;
 
 dut: rx_engine port map(clk => clk, reset => reset, tvalid => tvalid, tlast => tlast, tdata => tdata, tready => open,
                         i_forwardRX => '0', i_discard => '0', o_header => open, o_valid => open, o_data_len => open,
-						o_address => open, o_data => open, o_we => open, i_ready_TOE => '1', i_address_r => (others => '1'));
-environment: env port map(clk => clk, reset => reset, tvalid => tvalid, tlast => tlast, tdata => tdata, tready => '0');
+						o_address => open, o_data => open, o_we => open, i_ready_buffer => '1', i_address_r => (others => '1'));
+environment: env_rx_engine port map(clk => clk, reset => reset, tvalid => tvalid, tlast => tlast, tdata => tdata, tready => '0');
 end behavioural;
 
 architecture behavioural_2 of testbench_rx is
