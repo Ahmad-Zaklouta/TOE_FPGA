@@ -1,21 +1,21 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
+-- Company:
+-- Engineer:
+--
 -- Create Date: 01/03/2018 04:39:29 PM
--- Design Name: 
+-- Design Name:
 -- Module Name: memory_large - Behavioral
--- Project Name: 
--- Target Devices: 
--- Tool Versions: 
--- Description: 
--- 
--- Dependencies: 
--- 
+-- Project Name:
+-- Target Devices:
+-- Tool Versions:
+-- Description:
+--
+-- Dependencies:
+--
 -- Revision:
 -- Revision 0.01 - File Created
 -- Additional Comments:
--- 
+--
 ----------------------------------------------------------------------------------
 
 
@@ -50,9 +50,10 @@ end memory_large;
 
 architecture Behavioral of memory_large is
     type ram_t is array(2**memory_size - 1 downto 0) of std_ulogic_vector(data_length-1 downto 0);
-    shared variable RAM: ram_t;
+
 begin
     process(clk)
+        variable RAM: ram_t;
 		begin
             if rising_edge(clk) then
                 if we = '1' then

@@ -12,7 +12,7 @@ package tcp_common is
 	type t_tcp_header is record
 		src_ip : t_ipv4_address;
 		dst_ip : t_ipv4_address;
-		--length : unsigned(15 downto 0);
+		length : unsigned(15 downto 0);
 		src_port : t_tcp_port;
 		dst_port : t_tcp_port;
 		seq_num : t_seq_num;
@@ -49,7 +49,7 @@ package tcp_common is
 	constant c_default_tcp_header : t_tcp_header := (
 		src_ip => (others => '0'),
 		dst_ip => (others => '0'),
-		--length => (others => '0'),
+		length => (others => '0'),
 		src_port => (others => '0'),
 		dst_port => (others => '0'),
 		seq_num => (others => '0'),

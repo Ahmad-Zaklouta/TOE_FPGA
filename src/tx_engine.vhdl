@@ -6,10 +6,6 @@ use ieee.numeric_std.all;
 library work;
 use work.tcp_common.all;
 
-library work;
-use work.gray_code.all;
-
-
 
 entity tx_engine is
 	port (
@@ -32,10 +28,6 @@ entity tx_engine is
 		--Last signal will indicate the end of a packet
 		o_net_axi_last : out std_ulogic;
 
-		--DELETE THIS
-		--Sequence number acknowledged by reciever. When this value increases,
-		--space in the buffer is freed.
-		i_ctrl_ack_num : in t_seq_num;
 		--Header with the packet to send. Must be valid for one clock cycle with
 		--when i_tx_start is high.
 		i_ctrl_packet_header : in t_tcp_header;
@@ -134,7 +126,7 @@ begin
 		b_write_enable => '0'
 	);
 
-	app_buf_free_ptr <= i_ctrl_ack_num(APP_BUF_WIDTH downto 0);
+	app_buf_free_ptr <= i_ctrl_packet_header.seq_num(APP_BUF_WIDTH downto 0);
 
 	app_buf_write_possible <= '0' when (app_buf_write_ptr - app_buf_free_ptr = 2**APP_BUF_WIDTH) else '1';
 	app_buf_write_enable <= app_buf_write_possible and i_app_axi_valid;

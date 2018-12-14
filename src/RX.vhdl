@@ -16,7 +16,7 @@ entity RX is
   port(
     clk : in std_ulogic;
 	reset : in std_ulogic;
-	
+
 	i_forwardRX : in std_ulogic;
 	i_discard   : in std_ulogic;
 	o_header    : out t_tcp_header;
@@ -27,14 +27,14 @@ entity RX is
 	network_tlast  : in std_ulogic;
 	network_tready : out std_ulogic;
 	network_tdata  : in std_ulogic_vector(7 downto 0);
-	
+
     --between RX and  application
 	application_tvalid         : out std_ulogic;
 	application_tlast          : out std_ulogic;
 	application_tready         : in std_ulogic;
 	application_tdata          : out std_ulogic_vector(data_size-1 downto 0)
   );
-  
+
 end RX;
 
 architecture behavioural of RX is
@@ -46,13 +46,13 @@ architecture behavioural of RX is
     port(
       clk         : in std_ulogic;
 	  reset       : in std_ulogic;
-	  
+
 	  -- To and from FSM
       i_forwardRX : in std_ulogic;
 	  i_discard   : in std_ulogic;
 	  o_header    : out t_tcp_header;
 	  o_valid     : out std_ulogic;
-      o_data_len  : out std_ulogic_vector(15 downto 0);	 
+      o_data_len  : out std_ulogic_vector(15 downto 0);
 	  -- AXI-4 between network interface and TOE
 	  tvalid      : in std_ulogic;
 	  tlast       : in std_ulogic;
@@ -63,10 +63,10 @@ architecture behavioural of RX is
 	  o_data      : out std_ulogic_vector(7 downto 0);
 	  o_we        : out std_ulogic;
 	  i_address_r : in  std_ulogic_vector(memory_address_bits downto 0);
-	  i_ready_TOE : in std_ulogic
+	  i_ready_buffer : in std_ulogic
     );
   end component;
-  
+
   component rx_buffer is
     generic(
       memory_address_bits: natural := 14;
@@ -75,9 +75,9 @@ architecture behavioural of RX is
     port(
       clk            : in std_ulogic;
 	  reset          : in std_ulogic;
-  
+
       i_forwardRX    : in std_ulogic;
-      -- AXI-4 between TOE and 
+      -- AXI-4 between TOE and
 	  tvalid         : out std_ulogic;
 	  tlast          : out std_ulogic;
 	  tready         : in std_ulogic;
@@ -90,7 +90,7 @@ architecture behavioural of RX is
 	  i_we           : in std_ulogic;
 	  o_ready        : out std_ulogic
     );
-  end component;	
+  end component;
 
   signal read_address, write_address : std_ulogic_vector(memory_address_bits downto 0);
   signal data : std_ulogic_vector(7 downto 0);
@@ -101,11 +101,11 @@ begin
   o_data_len <= data_length;
 
   rx_engine_comp: rx_engine generic map(memory_address_bits)
-                  port map(clk => clk, reset => reset, i_forwardRX => i_forwardRX, i_discard => i_discard, 
-				           o_header => o_header, o_valid => o_valid, o_data_len => data_length, i_ready_TOE => ready,
+                  port map(clk => clk, reset => reset, i_forwardRX => i_forwardRX, i_discard => i_discard,
+				           o_header => o_header, o_valid => o_valid, o_data_len => data_length, i_ready_buffer => ready,
 						   tvalid => network_tvalid, tlast => network_tlast, tready => network_tready, tdata => network_tdata,
 						   o_address => write_address, o_data => data, o_we => we, i_address_r => read_address);
-				  
+
   rx_buffer_comp: rx_buffer generic map(memory_address_bits, data_size)
                   port map(clk => clk, reset => reset, i_forwardRX => i_forwardRX,
 				           tvalid => application_tvalid, tlast => application_tlast, tready => application_tready, tdata => application_tdata,

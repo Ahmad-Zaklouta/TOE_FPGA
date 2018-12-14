@@ -164,9 +164,6 @@ component tx_engine is
 		--Last signal will indicate the end of a packet
 		o_net_axi_last : out std_ulogic;
 
-		--Sequence number acknowledged by reciever. When this value increases,
-		--space in the buffer is freed.
-		i_ctrl_ack_num : in t_seq_num;
 		--Header with the packet to send. Must be valid for one clock cycle with
 		--when i_tx_start is high.
 		i_ctrl_packet_header : in t_tcp_header;
@@ -212,7 +209,9 @@ begin
 	toe: toefsm
 	port map(
 		clk => clk_internal, reset => reset_internal,
-		start => start, i_active_mode => i_active_mode, last => tx_application_tlast, i_open => i_open, i_timeout => i_timeout, o_established => o_established,
+		start => start, i_active_mode => i_active_mode,
+		last => tx_application_tlast,
+		i_open => i_open, i_timeout => i_timeout, o_established => o_established,
 		i_src_ip => i_src_ip, i_src_port => i_src_port, i_dst_ip => i_dst_ip, i_dst_port => i_dst_port,
 		i_header => header_RX_TOE_internal, i_valid => valid_RX_TOE_internal, i_data_sizeRx => data_len_RX_TOE_internal_as_unsigned,
 		o_forwardRX => forward_RX_internal, o_discard => discard_internal,
@@ -222,7 +221,7 @@ begin
 	tx_eng: tx_engine
 	port map(
 		clock => clk, i_reset => reset,
-		i_ctrl_ack_num => ack_num_TX_TOE_internal, i_ctrl_packet_header => packet_header_TX_TOE_internal, i_ctrl_packet_data_length => packet_data_length_TX_TOE_internal,
+		i_ctrl_packet_header => packet_header_TX_TOE_internal, i_ctrl_packet_data_length => packet_data_length_TX_TOE_internal,
 		i_ctrl_tx_start => tx_start_TX_TOE_internal, o_ctrl_data_bytes_available => data_bytes_available_TX_TOE_interal, o_ctrl_ready => ready_TX_TOE_internal,
 		i_app_axi_data => tx_application_tdata, i_app_axi_last => tx_application_tlast, o_app_axi_ready => tx_application_tready, i_app_axi_valid => tx_application_tvalid,
 		o_net_axi_data => tx_network_tdata, o_net_axi_last => tx_network_tlast, i_net_axi_ready => tx_network_tready, o_net_axi_valid => tx_network_tvalid
