@@ -42,8 +42,8 @@ architecture behavioural of rx_buffer is
            en : in std_ulogic;
            addr_r : in std_ulogic_VECTOR (memory_size-1 downto 0);
            addr_w : in std_ulogic_VECTOR (memory_size-1 downto 0);
-           di : in std_ulogic_VECTOR (data_length downto 0);
-           do : out std_ulogic_VECTOR (data_length downto 0)
+           di : in std_ulogic_VECTOR (data_length-1 downto 0);
+           do : out std_ulogic_VECTOR (data_length-1 downto 0)
 		   );
     end component;
 
@@ -55,17 +55,21 @@ architecture behavioural of rx_buffer is
   signal read_enabled : std_ulogic;
 begin
   
+  
   mem: memory_large generic map(memory_address_bits, data_size)
 			  port map(clk => clk, we => i_we, en => read_enabled,
 			           addr_w => i_write_address(memory_address_bits-1 downto 0), addr_r => read_address(memory_address_bits-1 downto 0),
-					   do => tdata, di =>    i_data);
+					   do => tdata, di => i_data);
   
-  comb: process(state, i_forwardRX, i_data_length, read_address, data_to_send)
+  comb: process(state, i_forwardRX, i_data_length, read_address, data_to_send, tready)
   begin
     o_ready <= '1';
 	read_enabled <= '0';
 	tvalid <= '0';
 	tlast <= '0';
+	state_next <= state;
+	read_address_next <= read_address;
+	data_to_send_next <= data_to_send;
 	
     case state is
       when await =>

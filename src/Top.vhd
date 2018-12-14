@@ -18,7 +18,7 @@ entity Top is
     start          :  in  std_ulogic;
     i_active_mode  :  in  std_ulogic;
     i_open         :  in  std_ulogic;     -- shall i save this to registers?
-    i_timeout      :  in  unsigned (10 downto 0);
+    i_timeout      :  in  unsigned (31 downto 0);
     o_established        :  out  std_ulogic;
     --------------------------------------------------------------------------------
     -- SRC IP,PORT / DST IP,PORT defined by App 
@@ -71,7 +71,7 @@ component toefsm is
       start          :  in  std_ulogic;
       i_active_mode  :  in  std_ulogic;      
       i_open         :  in  std_ulogic;     -- shall i save this to registers?
-      i_timeout      :  in  unsigned (10 downto 0);
+      i_timeout      :  in  unsigned (31 downto 0);
       o_established  :  out  std_ulogic;
       --------------------------------------------------------------------------------
       -- SRC IP,PORT / DST IP,PORT defined by App 

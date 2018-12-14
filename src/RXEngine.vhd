@@ -66,9 +66,8 @@ architecture rx_engine_behaviour of rx_engine is
   signal byte_buffer, byte_buffer_next: std_ulogic_vector(7 downto 0);
   
   signal address_read, address_write, address_init, address_write_next, address_init_next: std_ulogic_vector(memory_address_bits downto 0); 
-  signal full, full_wait, full_wait_next: std_ulogic;
   signal data_length, data_length_next : std_ulogic_vector(15 downto 0);
-  signal data_length_checksum: std_ulogic_vector(15 downto 0);
+  signal data_length_checksum, data_length_checksum_next: std_ulogic_vector(15 downto 0);
   
   signal checksum_data: std_ulogic_vector(7 downto 0);
 begin
@@ -76,14 +75,11 @@ begin
      i_data => checksum_data, i_valid=>checksum_valid, i_checksum_en => checksum_en, i_end_checksum => checksum_last, o_checksum_comp_finished => checksum_finished, o_checksum => open, o_error => checksum_error);
   
   
-  full <= '1' when ((address_write(memory_address_bits) /= address_write(memory_address_bits) )and (address_write(memory_address_bits - 1 downto 0) = address_read(memory_address_bits downto 0))) else
-           '0';
   
   o_data_len <= data_length;
   address_read <= i_address_r;
   o_address <= address_write;
   o_header <= header_register;
-  data_length_checksum <= std_ulogic_vector(unsigned(data_length) + 20);
   header13 <= header_buffer(20);
   header14 <= header_buffer(21);
   header15 <= header_buffer(22);
@@ -93,8 +89,7 @@ begin
   header19 <= header_buffer(26); 
   header20 <= header_buffer(27);
   
-  comb: process(state, tvalid, tlast, tdata, i_forwardRX, i_discard, checksum_error, checksum_finished, address_write, address_read, address_init, count, header_count, byte_buffer, 
-				full_wait, data_length, header_buffer)
+  comb: process(all)
   begin
     tready <= '1';
 	o_valid <= '0';
@@ -103,7 +98,6 @@ begin
 	checksum_en <= '0';
 	checksum_valid <= '0';
 	checksum_last  <= '0';
-	full_wait_next <= '0';
 	o_we <= '0';
 	
 	header_register_next <= header_register;
@@ -113,10 +107,9 @@ begin
 	byte_buffer_next   <= byte_buffer;
 	address_init_next  <= address_init;
 	address_write_next <= address_write;
-	full_wait_next     <= full_wait;
 	data_length_next   <= data_length;
 	header_buffer_next <= header_buffer;
-	
+	data_length_checksum_next <= data_length_checksum;
 	checksum_data <= tdata;
     case state is
 	  when await =>
@@ -131,7 +124,7 @@ begin
 		  checksum_en <= '1';
 	      checksum_valid <= '1';
 		  data_length_next <= (others => '0');
-		  
+		  data_length_checksum_next <= X"0014";
 		end if;
 	  when pseudo_header_read =>
 	    -- read the pseudo header
@@ -188,33 +181,12 @@ begin
 		  checksum_en <= '1';
 	      checksum_valid <= '1';
 		  o_we <= '1';
-		  
-		  if(full = '1' and full_wait = '0') then --first time wait
-		    tready <= '0';
-			byte_buffer_next <= tdata;
-			full_wait_next <= '1';
-	      elsif(full = '1' and full_wait = '1') then --still full, deactivate the checksum
-		    checksum_en <= '0';
-			checksum_valid <= '0';
-		    tready <= '0';
-		  elsif(full = '0' and full_wait = '1') then --can receive again, but still old data present
-		    tready <= '1';
-			full_wait_next <= '0';
-			checksum_en <= '0';
-			checksum_valid <= '0';
-			o_data <= byte_buffer;
-			o_we <= '1';
-			address_write_next <= std_ulogic_vector(unsigned(address_write) + 1);
-			data_length_next <= std_ulogic_vector(unsigned(data_length) + 1);
-		  else
-			o_we <= '1';
-		    address_write_next <= std_ulogic_vector(unsigned(address_write) + 1);
-			data_length_next <= std_ulogic_vector(unsigned(data_length) + 1);
-		  end if;
-		  
+		  address_write_next <= std_ulogic_vector(unsigned(address_write) + 1);
+		  data_length_next <= std_ulogic_vector(unsigned(data_length) + 1);
+		  data_length_checksum_next <= std_ulogic_vector(unsigned(data_length_checksum) + 1);
 		  
 		  if (tlast = '1') then
-		    if(data_length_checksum(0) ='1') then
+		    if(data_length(0) ='0') then
 	           state_next <= resolve_odd;
 			else
 		       state_next <= send_last_pseud_header;
@@ -269,7 +241,7 @@ begin
 	end case;
   end process;  
 
-  seq: process(clk)
+  seq: process(clk, reset)
   begin
     if (rising_edge(clk) and reset = '1') then
 	  state <= await;
@@ -279,7 +251,7 @@ begin
 	  address_write <= (others => '0');
 	  data_length <= (others => '0');
 	  header_register <= c_default_tcp_header;
-	  
+	  data_length_checksum <= (others => '0');
 	elsif (rising_edge(clk)) then
 	  byte_buffer <= byte_buffer_next;
 	  address_init <= address_init_next;
@@ -290,6 +262,7 @@ begin
 	  header_register <= header_register_next;
 	  data_length <= data_length_next;
 	  header_buffer <= header_buffer_next;
+	  data_length_checksum <= data_length_checksum_next;
 	end if;
   end process;
   

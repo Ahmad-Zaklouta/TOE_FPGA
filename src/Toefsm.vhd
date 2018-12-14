@@ -15,7 +15,7 @@ entity toefsm is
       start          :  in  std_ulogic;
       i_active_mode  :  in  std_ulogic;      
       i_open         :  in  std_ulogic;     -- shall i save this to registers?
-      i_timeout      :  in  unsigned (10 downto 0);
+      i_timeout      :  in  unsigned (31 downto 0);
       o_established  :  out  std_ulogic;
       --------------------------------------------------------------------------------
       -- SRC IP,PORT / DST IP,PORT defined by App 
@@ -61,7 +61,7 @@ end toefsm;
 --------------------------------------------------------------------------------
 architecture rtl of toefsm is
 
-constant ACK_TIMEOUT : integer := 500;
+constant ACK_TIMEOUT : integer := 1000000;
 constant frame : integer := 1500;
 type state_type is ( CLOSED, LISTEN, SYN_SENT, SYN_RCVD, ESTABLISHED, FIN_WAIT_1, FIN_WAIT_2,
                      CLOSE_WAIT, LAST_ACK, CLOSING, TIME_WAIT);
@@ -78,9 +78,10 @@ signal   r_previous_ack_num, r_next_previous_ack_num     :  t_seq_num;
 --------------------------------------------------------------------------------
 -- other Procedure signals
 --------------------------------------------------------------------------------
-signal   w_waitforack ,w_waiforbuffer        : std_ulogic :='0';
-signal   r_acktimerApp, r_next_acktimerApp   : unsigned (10 downto 0);
-signal   r_timeout, r_next_timeout           : unsigned (10 downto 0);  --defined by application (how long to wait for a response before closing connection)
+signal   r_waitforack ,r_waiforbuffer        : std_ulogic ;
+signal   r_nextwaitforack ,r_nextwaiforbuffer : std_ulogic ;
+signal   r_acktimerApp, r_next_acktimerApp   : unsigned (31 downto 0);
+signal   r_timeout, r_next_timeout           : unsigned (31 downto 0);  --defined by application (how long to wait for a response before closing connection)
 signal   r_forwardRX, r_next_forwardRX       : std_ulogic;
 signal   r_forwardTX, r_next_forwardTX       : std_ulogic;
 signal   r_discard, r_next_discard           : std_ulogic;
@@ -99,9 +100,12 @@ begin
    -- DISCARD SHOULD BE HIGH WHEN NOT NEED TO PROCESS DATA   
    comb_logic: process(r_header, r_headerApp_seq_num, i_header, state, i_open, i_src_ip, i_dst_ip, i_src_port, i_dst_port,
                        i_data_sizeApp, i_data_sizeRx, i_valid, i_timeout, i_active_mode, r_acktimerApp, r_timeout, start
-                       , r_previous_ack_num, r_forwardRX, r_forwardTX, r_discard, r_readytoSend, r_last)     
+                       , r_previous_ack_num, r_forwardRX, r_forwardTX, i_Txready, last, r_waitforack, r_waiforbuffer, r_discard, r_readytoSend, r_last)     
    begin
-      r_next_header <= r_header;           
+      r_next_header <= r_header;
+		sel <= '0';
+		r_nextwaitforack <= r_waitforack;
+		r_nextwaiforbuffer <= r_waiforbuffer ;
       r_next_headerApp_seq_num <= r_headerApp_seq_num; 
       r_next_previous_ack_num <= r_previous_ack_num;        
       r_next_forwardRX <= '0';
@@ -111,6 +115,7 @@ begin
       r_next_timeout <= r_timeout;
       next_last <= r_last;
       next_state <= state;
+		
       ----------------------
       --SEGMENTATION
       ----------------------- 
@@ -266,7 +271,7 @@ begin
             -- ack timer is reseting every time an ack is received 
             -- we start the counter only when our side waits an ack
             r_next_timeout <= r_timeout +1;
-            if w_waitforack = '1' then
+            if r_waitforack = '1' then
                r_next_acktimerApp <= r_acktimerApp +1; 
             end if;
             ------------------------
@@ -283,11 +288,11 @@ begin
                -- UPDATE Rx
                r_next_headerApp_seq_num   <= r_header.seq_num + 1;    
                
-            elsif w_waiforbuffer = '1' then             
+            elsif r_waiforbuffer = '1' then             
                if i_data_sizeApp /= X"0000"   then
                   next_state <= ESTABLISHED;
                else
-                  w_waiforbuffer <= '0';
+                  r_nextwaiforbuffer <= '0';
                   r_next_forwardTX <= '1';
                   next_state <= CLOSE_WAIT;
                end if;
@@ -318,7 +323,7 @@ begin
                         and i_header.seq_num /= r_previous_ack_num then              
                        
                         r_next_header.seq_num <= i_header.ack_num; --UPDATE seq_num 
-                        w_waitforack <='0';    
+                        r_nextwaitforack <='0';    
                         r_next_forwardRX <= '1'; -- for karol                        
                         ------------------------ 
                         -- IF I RECEIVE ALSO DATA UPDATE ACK NUM too
@@ -332,7 +337,7 @@ begin
                         r_next_header.flags <='0'& x"10"; --SEND ACK 
                         r_next_forwardRX <= '1'; 
                         r_next_forwardTX <= '1';
-                        w_waitforack <='0';                       
+                        r_nextwaitforack <='0';                       
                      ------------------------
                      -- HERE IF I RECEIVE PREVIOUS FRAMES's ACK
                      -----------------------      
@@ -371,7 +376,7 @@ begin
                      end if;
                      
                      if i_data_sizeApp /= X"0000"   then 
-                        w_waiforbuffer <= '1';
+                        r_nextwaiforbuffer <= '1';
                         next_state <=  ESTABLISHED; 
                      else  
                         r_next_forwardTX <= '1';   
@@ -407,7 +412,7 @@ begin
                         next_last <= '0';
                      end if;                
                   r_next_forwardTX <= '1';
-                  w_waitforack <= '1';
+                  r_nextwaitforack <= '1';
                   r_next_headerApp_seq_num <= r_header.seq_num + i_data_sizeApp;
                   ------------------------------------------
                   -- ACKNOWLEDGE FOR PACKET SEND BY OUR APP   -- if its seq_num is equal to the packets that i have ack..
@@ -432,7 +437,7 @@ begin
                         r_next_header.flags <='0'& x"10"; --SEND ACK        
                         r_next_previous_ack_num <= i_header.seq_num;
                         r_next_forwardRX <= '1';
-                        w_waitforack <= '0';
+                        r_nextwaitforack <= '0';
                         r_next_forwardRX <= '1'; -- for karol
                        ------------------------
                      -- HERE IF I RECEIVE PREVIOUS SEGMENT's ACK
@@ -467,7 +472,7 @@ begin
                         r_next_header.ack_num <= r_header.ack_num + i_data_sizeRx + 1; 
                      end if;                     
                      if i_data_sizeApp /= X"0000"   then 
-                        w_waiforbuffer <= '1';
+                        r_nextwaiforbuffer <= '1';
                         r_next_forwardTX <= '0';
                         next_state <=  ESTABLISHED; 
                      else                         
@@ -502,7 +507,7 @@ begin
                      end if;               
                r_next_headerApp_seq_num <= r_header.seq_num + i_data_sizeApp;           
                r_next_forwardTX <= '1';
-               w_waitforack <= '1';
+               r_nextwaitforack <= '1';
                r_next_header.flags <= (others => '0');             
                next_state <= ESTABLISHED;               
             else 
@@ -674,6 +679,8 @@ begin
                r_discard            <= '0';
                r_readytoSend        <= '0';
                r_last               <= '0';
+					r_waiforbuffer      <= '0';
+					r_waitforack			<= '0';
             else              
                r_header              <= r_next_header;
                r_headerApp_seq_num   <= r_next_headerApp_seq_num;
@@ -686,6 +693,8 @@ begin
                r_discard             <= r_next_discard;
                r_readytoSend         <= r_next_readytoSend;
                r_last                <= next_last;
+					r_waiforbuffer      <= r_nextwaiforbuffer;
+					r_waitforack			<= r_nextwaitforack;
             end if;
          end if;
       end process clk_logic;

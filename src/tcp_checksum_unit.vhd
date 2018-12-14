@@ -26,8 +26,11 @@ signal checksum, checksum_next: unsigned(31 downto 0);
 signal byte_prev, byte_prev_next: unsigned(7 downto 0);
 
 begin
-  comb: process(i_data, i_checksum_en, i_end_checksum, checksum, state)
+  comb: process(all)
   begin
+    state_next <= state;
+	 byte_prev_next <= byte_prev;
+	 checksum_next <= checksum;
     o_checksum <= std_ulogic_vector(checksum(15 downto 0));
 	o_error    <= '0';
 	o_checksum_comp_finished <= '0';
