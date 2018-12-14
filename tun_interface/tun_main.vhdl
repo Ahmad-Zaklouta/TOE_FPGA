@@ -64,8 +64,56 @@ architecture behaviour of tun_main is
 
 	constant clock_period : delay_length := 1 us;
 	signal clock : std_ulogic;
+	signal reset : std_ulogic := '1';
+	signal start : std_ulogic;
+	signal i_active_mode : std_ulogic;
+	signal i_open        : std_ulogic;     -- shall i save this to registers?
+	signal i_timeout     : unsigned (10 downto 0);
+	signal o_established : std_ulogic;
+	signal i_src_ip       : t_ipv4_address;
+	signal i_dst_ip       : t_ipv4_address;
+	signal i_src_port     : t_tcp_port;
+	signal i_dst_port     : t_tcp_port;
+	signal rx_network_tvalid : std_ulogic;
+	signal rx_network_tlast  : std_ulogic;
+	signal rx_network_tready : std_ulogic;
+	signal rx_network_tdata  : std_ulogic_vector(7 downto 0);
+	signal rx_application_tvalid : std_ulogic;
+	signal rx_application_tlast  : std_ulogic;
+	signal rx_application_tready : std_ulogic;
+	signal rx_application_tdata  : std_ulogic_vector(7 downto 0);
+	signal tx_network_tvalid : std_ulogic;
+	signal tx_network_tlast  : std_ulogic;
+	signal tx_network_tready : std_ulogic;
+	signal tx_network_tdata  : std_ulogic_vector(7 downto 0);
+	signal tx_application_tvalid : std_ulogic;
+	signal tx_application_tlast  : std_ulogic;
+	signal tx_application_tready : std_ulogic;
+	signal tx_application_tdata  : std_ulogic_vector(7 downto 0);
+
+	signal initialized : std_ulogic := '0';
 
 begin
+	tcp_engine_instance : tcp_engine port map(
+		clk => clock, reset => reset,
+		start => start, i_active_mode => i_active_mode, i_open => i_open, i_timeout => i_timeout, o_established => o_established,
+		i_src_ip => i_src_ip, i_dst_ip => i_dst_ip, i_src_port => i_src_port, i_dst_port => i_dst_port,
+		rx_network_tvalid => rx_network_tvalid, rx_network_tlast => rx_network_tlast, rx_network_tready => rx_network_tready, rx_network_tdata => rx_network_tdata,
+		rx_application_tvalid => rx_application_tvalid, rx_application_tlast => rx_application_tlast, rx_application_tready => rx_application_tready, rx_application_tdata => rx_application_tdata,
+		tx_network_tvalid => tx_network_tvalid, tx_network_tlast => tx_network_tlast, tx_network_tready => tx_network_tready, tx_network_tdata => tx_network_tdata,
+		tx_application_tvalid => tx_application_tvalid, tx_application_tlast => tx_application_tlast, tx_application_tready => tx_application_tready, tx_application_tdata => tx_application_tdata
+	);
+
+	-- The "application" simply echoes bytes back
+	tx_application_tdata <= rx_application_tdata;
+	tx_application_tvalid <= rx_application_tvalid;
+	rx_application_tready <= tx_application_tready;
+	tx_application_tlast <= '0';
+
+	--The network is always ready
+	tx_network_tready <= '1';
+
+	--Clock
 	process
 	begin
 		loop
@@ -76,28 +124,97 @@ begin
 		end loop;
 	end process;
 
+	--Initialization
 	process
-		variable rx_packet_size : integer;
-		variable out_line : line;
-		variable rx_byte : integer;
-		variable tx_result : integer;
 	begin
+		i_active_mode <= '0';
+		start <= '1';
+		i_timeout <= (others => '1');
+		i_open <= '1';
+		i_src_ip <= ipv4_address(10,0,0,1);
+		i_dst_ip <= ipv4_address(10,0,0,2);
+		i_src_port <= tcp_port(5555);
+		i_dst_port <= tcp_port(5555);
+
+		wait until rising_edge(clock);
+		wait until rising_edge(clock);
+		reset <= '0';
+		wait until rising_edge(clock);
 		tun_init;
+		wait until rising_edge(clock);
+		initialized <= '1';
+		wait;
+	end process;
+
+
+		-- loop
+		-- 	wait until rising_edge(clock);
+		-- 	rx_packet_size := tun_receive_packet;
+		-- 	if rx_packet_size > 1 then
+		-- 		--report integer'image(rx_packet_size);
+		-- 		for i in 0 to rx_packet_size - 1 loop
+		-- 			rx_byte := tun_read_byte;
+		-- 			--write(out_line, rx_byte);
+		-- 			--write(out_line, ',');
+		-- 		end loop;
+       	-- 		for i in 0 to 255 loop
+		-- 		   tx_result := tun_write_byte(i);
+		-- 		end loop;
+		-- 		tx_result := tun_send_packet;
+		-- 	end if;
+		-- end loop;
+
+	--Receiving data from network
+	process
+		variable rx_byte_count : integer;
+		variable rx_byte : integer;
+	begin
+		wait until initialized = '1';
 		loop
-			wait until rising_edge(clock);
-			rx_packet_size := tun_receive_packet;
-			if rx_packet_size > 1 then
-				--report integer'image(rx_packet_size);
-				for i in 0 to rx_packet_size - 1 loop
-					rx_byte := tun_read_byte;
-					--write(out_line, rx_byte);
-					--write(out_line, ',');
+			rx_byte_count := tun_receive_packet;
+			if rx_byte_count >= 1 then
+				while rx_byte_count > 0 loop
+					if rx_network_tready = '1' then
+						rx_byte := tun_read_byte;
+						assert rx_byte >= 0 and rx_byte <= 255;
+						rx_network_tdata <= std_ulogic_vector(to_unsigned(rx_byte, 8));
+						rx_network_tvalid <= '1';
+						if rx_byte_count = 1 then
+							rx_network_tlast <= '1';
+						else
+							rx_network_tlast <= '0';
+						end if;
+						rx_byte_count := rx_byte_count - 1;
+					else
+						rx_network_tdata <= (others => 'U');
+						rx_network_tvalid <= '0';
+						rx_network_tlast <= '0';
+					end if;
+					wait until rising_edge(clock);
 				end loop;
-       			for i in 0 to 255 loop
-				   tx_result := tun_write_byte(i);
-				end loop;
-				tx_result := tun_send_packet;
+
+				rx_network_tdata <= (others => 'U');
+				rx_network_tvalid <= '0';
+				rx_network_tlast <= '0';
 			end if;
+			wait until rising_edge(clock);
+		end loop;
+	end process;
+
+	--Transmitting data to network
+	process
+		variable tx_byte_count : integer;
+		variable tx_success : integer;
+	begin
+		wait until initialized = '1';
+		loop
+			if tx_network_tvalid = '1' then
+				tx_success := tun_write_byte(to_integer(unsigned(tx_application_tdata)));
+				if tx_network_tlast = '1' then
+					tx_success := tun_send_packet;
+				end if;
+			end if;
+			wait until rising_edge(clock);
 		end loop;
 	end process;
 end behaviour;

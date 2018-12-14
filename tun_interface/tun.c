@@ -151,7 +151,13 @@ int32_t tun_receive_packet() {
 	printf("\tIP header: ");
 	for (int i = 0; i < 20; i++) printf("%x,", raw_packet[i]);
 	printf("\n");
+	printf("\tTotal length: %d\n", total_length);
+	printf("\tHeader length: %d\n", header_length);
 	print_tcp_packet(rx_packet);
+
+	rx_packet_size = data_length + 8;
+	rx_offset = 0;
+
 	return data_length + 8;
 
 	//
@@ -166,7 +172,7 @@ int32_t tun_read_byte() {
 		return ret;
 	}
 	else {
-		//printf("TUN: Warning: read past end of packet");
+		printf("TUN: Warning: read past end of packet\n");
 		return -1;
 	}
 }

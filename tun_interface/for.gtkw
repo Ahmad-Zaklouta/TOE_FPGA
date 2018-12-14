@@ -1,0 +1,39 @@
+[*]
+[*] GTKWave Analyzer v3.3.94 (w)1999-2018 BSI
+[*] Fri Dec 14 08:21:18 2018
+[*]
+[dumpfile] "/home/amar/classes/34349/TOE_FPGA/tun_interface/signals.ghw"
+[dumpfile_mtime] "Fri Dec 14 01:42:29 2018"
+[dumpfile_size] 469821
+[savefile] "/home/amar/classes/34349/TOE_FPGA/tun_interface/for.gtkw"
+[timestart] 0
+[size] 1920 1019
+[pos] -1 -1
+*-32.580219 272000000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.tun_main.
+[treeopen] top.tun_main.tcp_engine_instance.
+[treeopen] top.tun_main.tcp_engine_instance.tx_eng.
+[treeopen] top.tun_main.tcp_engine_instance.tx_eng.app_buf.
+[treeopen] top.tun_main.tcp_engine_instance.tx_eng.net_buf.
+[sst_width] 391
+[signals_width] 271
+[sst_expanded] 1
+[sst_vpaned_height] 294
+@28
+top.tun_main.clock
+top.tun_main.reset
+top.tun_main.start
+top.tun_main.i_active_mode
+top.tun_main.i_open
+@22
+#{top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[16:0]} top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[16] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[15] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[14] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[13] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[12] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[11] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[10] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[9] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[8] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[7] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[6] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[5] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[4] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[3] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[2] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[1] top.tun_main.tcp_engine_instance.tx_eng.app_buf_write_ptr[0]
+#{top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[16:0]} top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[16] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[15] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[14] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[13] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[12] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[11] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[10] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[9] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[8] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[7] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[6] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[5] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[4] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[3] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[2] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[1] top.tun_main.tcp_engine_instance.tx_eng.app_buf_free_ptr[0]
+@25
+#{top.tun_main.rx_network_tdata[7:0]} top.tun_main.rx_network_tdata[7] top.tun_main.rx_network_tdata[6] top.tun_main.rx_network_tdata[5] top.tun_main.rx_network_tdata[4] top.tun_main.rx_network_tdata[3] top.tun_main.rx_network_tdata[2] top.tun_main.rx_network_tdata[1] top.tun_main.rx_network_tdata[0]
+@28
+top.tun_main.tcp_engine_instance.rx_network_tready
+top.tun_main.tcp_engine_instance.rx_network_tlast
+top.tun_main.tcp_engine_instance.rx_network_tvalid
+[pattern_trace] 1
+[pattern_trace] 0
